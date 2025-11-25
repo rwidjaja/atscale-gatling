@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  atscale-gatling:
+    image: rwidjaja/atscale-gatling:latest
+    container_name: atscale-gatling
+    volumes:
+      - ./working_dir:/app/working_dir
+    # Don't start by default - wait for specific command
+    command: ["help"]
+    
+  # Pre-defined services for common executors
+  query-extract:
+    image: rwidjaja/atscale-gatling:latest
+    container_name: atscale-query-extract
+    volumes:
+      - ./working_dir:/app/working_dir
+    command: ["QueryExtractExecutor"]
+    
+  concurrent-simulation:
+    image: rwidjaja/atscale-gatling:latest
+    container_name: atscale-concurrent-simulation
+    volumes:
+      - ./working_dir:/app/working_dir
+    command: ["OpenStepConcurrentSimulationExecutor"]
+    
+  archive-jdbc:
+    image: rwidjaja/atscale-gatling:latest
+    container_name: atscale-archive-jdbc
+    volumes:
+      - ./working_dir:/app/working_dir
+    command: ["ArchiveJdbcToSnowflake"]

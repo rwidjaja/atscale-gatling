@@ -1,0 +1,9 @@
+.git
+.gitignore
+target/classes
+working_dir/
+.mvn
+mvnw
+mvnw.cmd
+*.log
+.DS_Store

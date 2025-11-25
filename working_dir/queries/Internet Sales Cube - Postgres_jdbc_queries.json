@@ -1,0 +1,14 @@
+[ {
+  "queryName" : "Query 1",
+  "service" : "user-query",
+  "queryLanguage" : "sql",
+  "inboundText" : "SELECT CAST(\"Internet Sales Cube\".\"Ship ReportIng_Year\" AS TEXT) AS \"Ship ReportIng_Year\",\n  AVG(\"Internet Sales Cube\".\"Average Customer Count per Order\") AS \"avg:Average Customer Count per Order:ok\",\n  COUNT(\"Internet Sales Cube\".\"Average Customer Count per Order\") AS \"cnt:Average Customer Count per Order:ok\",\n  SUM(\"Internet Sales Cube\".\"Average Customer Count per Order\") AS \"sum:Average Customer Count per Order:ok\"\nFROM \"Sales Insights - Postgres\".\"Internet Sales Cube - Postgres\" \"Internet Sales Cube - Postgres\"\nGROUP BY 1",
+  "inboundTextAsMd5Hash" : "bef1fd4fadf5350e6c5b75decfaa6b6d",
+  "outboundText" : "SELECT\n   CAST(\"datecustom_t86\".\"rpt_year_name\" AS TEXT) AS \"Ship ReportIng_Year\",\n   CASE WHEN (COALESCE(CAST(SUM(\"factinternetsales_t85\".\"orderquantity\") AS BIGINT), 0) = 0) THEN (CAST('Infinity' AS FLOAT8) * CAST(SIGN(COUNT(DISTINCT \"factinternetsales_t85\".\"customerkey\")) AS FLOAT8)) ELSE CASE WHEN (CAST(SUM(\"factinternetsales_t85\".\"orderquantity\") AS BIGINT) = 0) THEN NULL ELSE (CAST(COUNT(DISTINCT \"factinternetsales_t85\".\"customerkey\") AS FLOAT8) / CAST(SUM(\"factinternetsales_t85\".\"orderquantity\") AS BIGINT)) END END AS \"avg:Average Customer Count per Order:ok\",\n   CASE WHEN (COALESCE(CAST(SUM(\"factinternetsales_t85\".\"orderquantity\") AS BIGINT), 0) = 0) THEN (CAST('Infinity' AS FLOAT8) * CAST(SIGN(COUNT(DISTINCT \"factinternetsales_t85\".\"customerkey\")) AS FLOAT8)) ELSE CASE WHEN (CAST(SUM(\"factinternetsales_t85\".\"orderquantity\") AS BIGINT) = 0) THEN NULL ELSE (CAST(COUNT(DISTINCT \"factinternetsales_t85\".\"customerkey\") AS FLOAT8) / CAST(SUM(\"factinternetsales_t85\".\"orderquantity\") AS BIGINT)) END END AS \"cnt:Average Customer Count per Order:ok\",\n   CASE WHEN (COALESCE(CAST(SUM(\"factinternetsales_t85\".\"orderquantity\") AS BIGINT), 0) = 0) THEN (CAST('Infinity' AS FLOAT8) * CAST(SIGN(COUNT(DISTINCT \"factinternetsales_t85\".\"customerkey\")) AS FLOAT8)) ELSE CASE WHEN (CAST(SUM(\"factinternetsales_t85\".\"orderquantity\") AS BIGINT) = 0) THEN NULL ELSE (CAST(COUNT(DISTINCT \"factinternetsales_t85\".\"customerkey\") AS FLOAT8) / CAST(SUM(\"factinternetsales_t85\".\"orderquantity\") AS BIGINT)) END END AS \"sum:Average Customer Count per Order:ok\"\nFROM\n   \"SalesInsights\".\"factinternetsales\" AS \"factinternetsales_t85\"\nJOIN\n   \"SalesInsights\".\"datecustom\" AS \"datecustom_t86\"\nON\n   \"factinternetsales_t85\".\"shipdatekey\" = \"datecustom_t86\".\"datekey\"\nWHERE\n   true\nGROUP BY\n   1",
+  "cubeName" : "Internet Sales Cube - Postgres",
+  "projectId" : "53d49296-e7d1-4a35-5f49-5621175219d9",
+  "aggregateUsed" : false,
+  "numTimes" : 2,
+  "elapsedTimeInSeconds" : 323,
+  "avgResultSetSize" : 4
+} ]

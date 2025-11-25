@@ -1,0 +1,1436 @@
+2025-11-25 14:35:00 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:35:01 WARN  AdditionalPropertiesLoader: - AWS region or secrets-key property not found. Skipping loading additional properties from AWS Secrets Manager. 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor started. 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Loading base query from: /app/working_dir/config/base_query.sql 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Successfully loaded base query, size: 1570 characters 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Loaded base query from file, length: 1560 characters 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Internet_Sales_Cube_-_Postgres, Cube: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: ASAdventureSmall, Cube: ASAdventureSmall, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Internet_Sales_Cube_-_Postgres, Cube Name: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:35:01 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_jdbc_queries.json 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:35:01 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:35:01 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_xmla_queries.json 
+2025-11-25 14:35:02 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: ASAdventureSmall, Cube Name: ASAdventureSmall, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:35:02 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: ASAdventureSmall 
+2025-11-25 14:35:02 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: ASAdventureSmall, cubeName: ASAdventureSmall 
+2025-11-25 14:35:02 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model ASAdventureSmall to file: working_dir/queries/ASAdventureSmall_jdbc_queries.json 
+2025-11-25 14:35:02 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'ASAdventureSmall'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:35:03 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:35:03 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:35:03 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: ASAdventureSmall 
+2025-11-25 14:35:03 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: ASAdventureSmall, cubeName: ASAdventureSmall 
+2025-11-25 14:35:03 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model ASAdventureSmall to file: working_dir/queries/ASAdventureSmall_xmla_queries.json 
+2025-11-25 14:35:04 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor finished. 
+2025-11-25 14:35:29 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:35:29 WARN  AdditionalPropertiesLoader: - AWS region or secrets-key property not found. Skipping loading additional properties from AWS Secrets Manager. 
+2025-11-25 14:35:29 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor started. 
+2025-11-25 14:35:29 INFO  InstallerVerQueryExtractExecutor: - Loading base query from: /app/working_dir/config/base_query.sql 
+2025-11-25 14:35:29 INFO  InstallerVerQueryExtractExecutor: - Successfully loaded base query, size: 1570 characters 
+2025-11-25 14:35:29 INFO  InstallerVerQueryExtractExecutor: - Loaded base query from file, length: 1560 characters 
+2025-11-25 14:35:29 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Internet_Sales_Cube_-_Postgres, Cube: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:35:29 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Internet_Sales_Cube_-_Postgres, Cube Name: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:35:29 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:35:29 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:35:29 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_jdbc_queries.json 
+2025-11-25 14:35:30 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:35:30 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:35:30 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_xmla_queries.json 
+2025-11-25 14:35:30 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor finished. 
+2025-11-25 14:35:56 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:35:56 WARN  AdditionalPropertiesLoader: - AWS region or secrets-key property not found. Skipping loading additional properties from AWS Secrets Manager. 
+2025-11-25 14:35:56 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor started. 
+2025-11-25 14:35:56 INFO  InstallerVerQueryExtractExecutor: - Loading base query from: /app/working_dir/config/base_query.sql 
+2025-11-25 14:35:56 INFO  InstallerVerQueryExtractExecutor: - Successfully loaded base query, size: 1590 characters 
+2025-11-25 14:35:56 INFO  InstallerVerQueryExtractExecutor: - Loaded base query from file, length: 1580 characters 
+2025-11-25 14:35:56 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Internet_Sales_Cube_-_Postgres, Cube: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:35:56 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Internet_Sales_Cube_-_Postgres, Cube Name: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:35:56 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:35:56 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:35:56 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_jdbc_queries.json 
+2025-11-25 14:35:57 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:35:57 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:35:57 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_xmla_queries.json 
+2025-11-25 14:35:57 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor finished. 
+2025-11-25 14:36:25 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:36:25 WARN  AdditionalPropertiesLoader: - AWS region or secrets-key property not found. Skipping loading additional properties from AWS Secrets Manager. 
+2025-11-25 14:36:25 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor started. 
+2025-11-25 14:36:25 INFO  InstallerVerQueryExtractExecutor: - Loading base query from: /app/working_dir/config/base_query.sql 
+2025-11-25 14:36:25 INFO  InstallerVerQueryExtractExecutor: - Successfully loaded base query, size: 1590 characters 
+2025-11-25 14:36:25 INFO  InstallerVerQueryExtractExecutor: - Loaded base query from file, length: 1580 characters 
+2025-11-25 14:36:25 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Enterprise_Sales, Cube: Enterprise Sales, Catalog: Enterprise Sales(2) 
+2025-11-25 14:36:25 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Enterprise_Sales, Cube Name: Enterprise Sales, Catalog: Enterprise Sales(2) 
+2025-11-25 14:36:25 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Enterprise Sales 
+2025-11-25 14:36:25 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Enterprise Sales, cubeName: Enterprise Sales 
+2025-11-25 14:36:25 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Enterprise Sales to file: working_dir/queries/Enterprise Sales_jdbc_queries.json 
+2025-11-25 14:36:25 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'Enterprise Sales'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:36:26 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:36:26 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:36:26 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Enterprise Sales 
+2025-11-25 14:36:26 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Enterprise Sales, cubeName: Enterprise Sales 
+2025-11-25 14:36:26 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Enterprise Sales to file: working_dir/queries/Enterprise Sales_xmla_queries.json 
+2025-11-25 14:36:26 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'analysis' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'Enterprise Sales'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:36:27 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:36:27 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+2025-11-25 14:36:27 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor finished. 
+2025-11-25 14:37:00 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:37:00 WARN  AdditionalPropertiesLoader: - AWS region or secrets-key property not found. Skipping loading additional properties from AWS Secrets Manager. 
+2025-11-25 14:37:00 INFO  ConcurrentSimulationExecutor: - Starting task Internet Sales Cube - Postgres JDBC Concurrent Open Simulation with command: [./mvnw, -Dgatling.simulationClass=com.atscale.java.jdbc.simulations.AtScaleOpenInjectionStepSimulation, -Dgatling.runDescription=Internet Sales Cube - Postgres JDBC Concurrent Open Cube Tests, -Datscale.model=SW50ZXJuZXQgU2FsZXMgQ3ViZSAtIFBvc3RncmVz, -Datscale.run.id=Q29uY3VycmVudE9wZW5SdW4tSW50ZXJuZXRTYWxlc0N1YmUtUG9zdGdyZXMtamRiYw==, -Dgatling_run_logFileName=Internet_Sales_Cube_-_Postgres_jdbc_concurrent_open.log, -Dgatling_run_logAppend=false, -Datscale.gatling.injection.steps=W3sidXNlcnMiOjEsInR5cGUiOiJBdE9uY2VVc2Vyc09wZW5JbmplY3Rpb25TdGVwIn1d, -Dquery_ingestion_file=null, -Dquery_ingestion_file_has_header=false, -Dadditional_properties=eyJjYXRhbG9nTmFtZSI6IlNhbGVzIEluc2lnaHRzIC0gUG9zdGdyZXMiLCJtb2RlbE5hbWUiOiJJbnRlcm5ldCBTYWxlcyBDdWJlIC0gUG9zdGdyZXMiLCJqYXZheC5uZXQuc3NsLnRydXN0U3RvcmUiOiIuL2NhY2VydHMiLCJxdWVyeUZpbGUiOiJxdWVyaWVzL0ludGVybmV0IFNhbGVzIEN1YmUgLSBQb3N0Z3Jlc19qZGJjX3F1ZXJpZXMuanNvbiIsInByb3RvY29sIjoiamRiYyIsImJhc2VVcmwiOiJodHRwOi8vdWJ1bnR1LWF0c2NhbGUuYXRzY2FsZWRvbWFpbi5jb206MTA1MDAiLCJwYXNzd29yZCI6InBhc3N3b3JkIiwiY2F0YWxvZyI6IlNhbGVzIEluc2lnaHRzIC0gUG9zdGdyZXMiLCJqYXZheC5uZXQuc3NsLnRydXN0U3RvcmVQYXNzd29yZCI6ImNoYW5nZWl0IiwidXNlcm5hbWUiOiJhZG1pbiJ9, gatling:test] 
+2025-11-25 14:37:01 INFO  ConcurrentSimulationExecutor: - Starting task Internet Sales Cube - Postgres XMLA Concurrent Open Simulation with command: [./mvnw, -Dgatling.simulationClass=com.atscale.java.xmla.simulations.AtScaleXmlaOpenInjectionStepSimulation, -Dgatling.runDescription=Internet Sales Cube - Postgres XMLA Concurrent Open Cube Tests, -Datscale.model=SW50ZXJuZXQgU2FsZXMgQ3ViZSAtIFBvc3RncmVz, -Datscale.run.id=Q29uY3VycmVudE9wZW5SdW4tSW50ZXJuZXRTYWxlc0N1YmUtUG9zdGdyZXMteG1sYQ==, -Dgatling_run_logFileName=Internet_Sales_Cube_-_Postgres_xmla_concurrent_open.log, -Dgatling_run_logAppend=false, -Datscale.gatling.injection.steps=W3sidXNlcnMiOjEsInR5cGUiOiJBdE9uY2VVc2Vyc09wZW5JbmplY3Rpb25TdGVwIn1d, -Dquery_ingestion_file=null, -Dquery_ingestion_file_has_header=false, -Dadditional_properties=eyJjYXRhbG9nTmFtZSI6IlNhbGVzIEluc2lnaHRzIC0gUG9zdGdyZXMiLCJtb2RlbE5hbWUiOiJJbnRlcm5ldCBTYWxlcyBDdWJlIC0gUG9zdGdyZXMiLCJqYXZheC5uZXQuc3NsLnRydXN0U3RvcmUiOiIuL2NhY2VydHMiLCJxdWVyeUZpbGUiOiJxdWVyaWVzL0ludGVybmV0IFNhbGVzIEN1YmUgLSBQb3N0Z3Jlc194bWxhX3F1ZXJpZXMuanNvbiIsInByb3RvY29sIjoieG1sYSIsImJhc2VVcmwiOiJodHRwOi8vdWJ1bnR1LWF0c2NhbGUuYXRzY2FsZWRvbWFpbi5jb206MTA1MDAiLCJwYXNzd29yZCI6InBhc3N3b3JkIiwiY2F0YWxvZyI6IlNhbGVzIEluc2lnaHRzIC0gUG9zdGdyZXMiLCJqYXZheC5uZXQuc3NsLnRydXN0U3RvcmVQYXNzd29yZCI6ImNoYW5nZWl0IiwidXNlcm5hbWUiOiJhZG1pbiJ9, gatling:test] 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: catalogName of size 25 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: modelName of size 30 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: javax.net.ssl.trustStore of size 9 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: queryFile of size 56 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: protocol of size 4 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: baseUrl of size 45 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: password of size 8 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: catalog of size 25 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: javax.net.ssl.trustStorePassword of size 8 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: username of size 5 
+2025-11-25 14:38:11 INFO  AtScaleXmlaSimulation: - Simulation class com.atscale.java.xmla.simulations.AtScaleXmlaOpenInjectionStepSimulation Gatling run ID: ConcurrentOpenRun-InternetSalesCube-Postgres-xmla 
+2025-11-25 14:38:11 INFO  AtScaleXmlaSimulation: - Using model: Internet Sales Cube - Postgres 
+2025-11-25 14:38:11 INFO  AtScaleXmlaSimulation: - Using injection steps: [{"users":1,"type":"AtOnceUsersOpenInjectionStep"}] 
+2025-11-25 14:38:11 INFO  AtScaleXmlaSimulation: - Using run id: ConcurrentOpenRun-InternetSalesCube-Postgres-xmla 
+2025-11-25 14:38:11 INFO  AtScaleXmlaSimulation: - Using log file name: Internet_Sales_Cube_-_Postgres_xmla_concurrent_open.log 
+2025-11-25 14:38:11 INFO  AtScaleXmlaSimulation: - Logging as append: false 
+2025-11-25 14:38:11 INFO  AtScaleXmlaSimulation: - Using ingestion file: null 
+2025-11-25 14:38:11 INFO  AtScaleXmlaSimulation: - Using ingestion file has header: false 
+2025-11-25 14:38:11 INFO  AtScaleXmlaSimulation: - Using 10 additional properties 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: catalogName of size 25 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: modelName of size 30 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: javax.net.ssl.trustStore of size 9 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: queryFile of size 56 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: protocol of size 4 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: baseUrl of size 45 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: password of size 8 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: catalog of size 25 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: javax.net.ssl.trustStorePassword of size 8 
+2025-11-25 14:38:11 INFO  PropertiesManager: - Setting custom property: username of size 5 
+2025-11-25 14:38:11 INFO  AtScaleSimulation: - Simulation class com.atscale.java.jdbc.simulations.AtScaleOpenInjectionStepSimulation Gatling run ID: ConcurrentOpenRun-InternetSalesCube-Postgres-jdbc 
+2025-11-25 14:38:11 INFO  AtScaleSimulation: - Using model: Internet Sales Cube - Postgres 
+2025-11-25 14:38:11 INFO  AtScaleSimulation: - Using injection steps: [{"users":1,"type":"AtOnceUsersOpenInjectionStep"}] 
+2025-11-25 14:38:11 INFO  AtScaleSimulation: - Using run id: ConcurrentOpenRun-InternetSalesCube-Postgres-jdbc 
+2025-11-25 14:38:11 INFO  AtScaleSimulation: - Using log file name: Internet_Sales_Cube_-_Postgres_jdbc_concurrent_open.log 
+2025-11-25 14:38:11 INFO  AtScaleSimulation: - Logging as append: false 
+2025-11-25 14:38:11 INFO  AtScaleSimulation: - Using ingestion file: null 
+2025-11-25 14:38:11 INFO  AtScaleSimulation: - Using ingestion file has header: false 
+2025-11-25 14:38:11 INFO  AtScaleSimulation: - Using 10 additional properties 
+2025-11-25 14:38:11 INFO  XmlaProtocol: - Configured for installer version.  Will obtain bearer auth token. 
+2025-11-25 14:38:11 INFO  XmlaProtocol: - Configured for max connections per host: 20 
+2025-11-25 14:38:11 INFO  XmlaProtocol: - Getting bearer token from URL: https://ubuntu-atscale.atscaledomain.com:10500/default/auth 
+2025-11-25 14:38:11 INFO  AtScaleDynamicQueryBuilderScenario: - Created 1 JDBC query builders from model: Internet Sales Cube - Postgres 
+2025-11-25 14:38:12 INFO  XmlaProtocol: - Obtained bearer token for user admin and model Internet Sales Cube - Postgres. 
+2025-11-25 14:38:12 INFO  HikariDataSource: - HikariPool-1 - Starting... 
+2025-11-25 14:38:13 INFO  HikariPool: - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@7a606260 
+2025-11-25 14:38:13 INFO  HikariDataSource: - HikariPool-1 - Start completed. 
+2025-11-25 14:38:14 INFO  ConcurrentSimulationExecutor: - Task Internet Sales Cube - Postgres XMLA Concurrent Open Simulation completed successfully. 
+2025-11-25 14:38:14 INFO  ConcurrentSimulationExecutor: - Task Internet Sales Cube - Postgres JDBC Concurrent Open Simulation completed successfully. 
+2025-11-25 14:38:14 INFO  ConcurrentSimulationExecutor: - 🛑 Stopping all running processes... 
+2025-11-25 14:38:14 INFO  ConcurrentSimulationExecutor: - Run Log Path: /app/run_logs 
+2025-11-25 14:39:37 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:39:37 WARN  AdditionalPropertiesLoader: - AWS region or secrets-key property not found. Skipping loading additional properties from AWS Secrets Manager. 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor started. 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Loading base query from: /app/working_dir/config/base_query.sql 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Successfully loaded base query, size: 1590 characters 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Loaded base query from file, length: 1580 characters 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: ASASDefaultMembers, Cube: ASASDefaultMembers, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Enterprise_Sales_SalesOps, Cube: Enterprise Sales SalesOps, Catalog: Enterprise Sales(2) 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Enterprise_Sales, Cube: Enterprise Sales, Catalog: Enterprise Sales(2) 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: ResellerPerspective, Cube: ResellerPerspective, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Internet_Sales_Cube_-_Postgres, Cube: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: ASAdventureSmall, Cube: ASAdventureSmall, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Enterprise_Sales_All_Sales, Cube: Enterprise Sales All Sales, Catalog: Enterprise Sales(2) 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: ResellerPerspective, Cube Name: ResellerPerspective, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: ResellerPerspective 
+2025-11-25 14:39:37 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: ResellerPerspective, cubeName: ResellerPerspective 
+2025-11-25 14:39:37 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model ResellerPerspective to file: working_dir/queries/ResellerPerspective_jdbc_queries.json 
+2025-11-25 14:39:37 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'ResellerPerspective'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:38 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:38 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:39:38 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: ResellerPerspective 
+2025-11-25 14:39:38 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: ResellerPerspective, cubeName: ResellerPerspective 
+2025-11-25 14:39:38 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model ResellerPerspective to file: working_dir/queries/ResellerPerspective_xmla_queries.json 
+2025-11-25 14:39:38 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'analysis' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'ResellerPerspective'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:39 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:39 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+2025-11-25 14:39:39 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Enterprise_Sales_All_Sales, Cube Name: Enterprise Sales All Sales, Catalog: Enterprise Sales(2) 
+2025-11-25 14:39:39 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Enterprise Sales All Sales 
+2025-11-25 14:39:39 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Enterprise Sales All Sales, cubeName: Enterprise Sales All Sales 
+2025-11-25 14:39:39 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Enterprise Sales All Sales to file: working_dir/queries/Enterprise Sales All Sales_jdbc_queries.json 
+2025-11-25 14:39:39 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'Enterprise Sales All Sales'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:40 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:39:40 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Enterprise Sales All Sales 
+2025-11-25 14:39:40 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Enterprise Sales All Sales, cubeName: Enterprise Sales All Sales 
+2025-11-25 14:39:40 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Enterprise Sales All Sales to file: working_dir/queries/Enterprise Sales All Sales_xmla_queries.json 
+2025-11-25 14:39:40 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'analysis' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'Enterprise Sales All Sales'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:40 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:40 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+2025-11-25 14:39:40 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Internet_Sales_Cube_-_Postgres, Cube Name: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:39:40 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:39:40 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:39:40 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_jdbc_queries.json 
+2025-11-25 14:39:41 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:39:41 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:39:41 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_xmla_queries.json 
+2025-11-25 14:39:41 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: ASASDefaultMembers, Cube Name: ASASDefaultMembers, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:39:41 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: ASASDefaultMembers 
+2025-11-25 14:39:41 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: ASASDefaultMembers, cubeName: ASASDefaultMembers 
+2025-11-25 14:39:41 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model ASASDefaultMembers to file: working_dir/queries/ASASDefaultMembers_jdbc_queries.json 
+2025-11-25 14:39:42 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'ASASDefaultMembers'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:42 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:42 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:39:42 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: ASASDefaultMembers 
+2025-11-25 14:39:42 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: ASASDefaultMembers, cubeName: ASASDefaultMembers 
+2025-11-25 14:39:42 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model ASASDefaultMembers to file: working_dir/queries/ASASDefaultMembers_xmla_queries.json 
+2025-11-25 14:39:43 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'analysis' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'ASASDefaultMembers'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:43 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:43 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+2025-11-25 14:39:43 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Enterprise_Sales_SalesOps, Cube Name: Enterprise Sales SalesOps, Catalog: Enterprise Sales(2) 
+2025-11-25 14:39:43 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Enterprise Sales SalesOps 
+2025-11-25 14:39:43 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Enterprise Sales SalesOps, cubeName: Enterprise Sales SalesOps 
+2025-11-25 14:39:43 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Enterprise Sales SalesOps to file: working_dir/queries/Enterprise Sales SalesOps_jdbc_queries.json 
+2025-11-25 14:39:44 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'Enterprise Sales SalesOps'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:44 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:44 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:39:44 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Enterprise Sales SalesOps 
+2025-11-25 14:39:44 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Enterprise Sales SalesOps, cubeName: Enterprise Sales SalesOps 
+2025-11-25 14:39:44 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Enterprise Sales SalesOps to file: working_dir/queries/Enterprise Sales SalesOps_xmla_queries.json 
+2025-11-25 14:39:44 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'analysis' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'Enterprise Sales SalesOps'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:45 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:45 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+2025-11-25 14:39:45 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: ASAdventureSmall, Cube Name: ASAdventureSmall, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:39:45 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: ASAdventureSmall 
+2025-11-25 14:39:45 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: ASAdventureSmall, cubeName: ASAdventureSmall 
+2025-11-25 14:39:45 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model ASAdventureSmall to file: working_dir/queries/ASAdventureSmall_jdbc_queries.json 
+2025-11-25 14:39:45 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'ASAdventureSmall'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:46 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:46 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:39:46 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: ASAdventureSmall 
+2025-11-25 14:39:46 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: ASAdventureSmall, cubeName: ASAdventureSmall 
+2025-11-25 14:39:46 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model ASAdventureSmall to file: working_dir/queries/ASAdventureSmall_xmla_queries.json 
+2025-11-25 14:39:46 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Enterprise_Sales, Cube Name: Enterprise Sales, Catalog: Enterprise Sales(2) 
+2025-11-25 14:39:46 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Enterprise Sales 
+2025-11-25 14:39:46 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Enterprise Sales, cubeName: Enterprise Sales 
+2025-11-25 14:39:46 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Enterprise Sales to file: working_dir/queries/Enterprise Sales_jdbc_queries.json 
+2025-11-25 14:39:47 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'Enterprise Sales'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:47 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:47 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:39:47 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Enterprise Sales 
+2025-11-25 14:39:47 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Enterprise Sales, cubeName: Enterprise Sales 
+2025-11-25 14:39:47 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Enterprise Sales to file: working_dir/queries/Enterprise Sales_xmla_queries.json 
+2025-11-25 14:39:47 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'analysis' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'Enterprise Sales'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:39:48 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:39:48 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+2025-11-25 14:39:48 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor finished. 
+2025-11-25 14:40:32 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:40:32 WARN  AdditionalPropertiesLoader: - AWS region or secrets-key property not found. Skipping loading additional properties from AWS Secrets Manager. 
+2025-11-25 14:40:32 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor started. 
+2025-11-25 14:40:32 INFO  InstallerVerQueryExtractExecutor: - Loading base query from: /app/working_dir/config/base_query.sql 
+2025-11-25 14:40:32 INFO  InstallerVerQueryExtractExecutor: - Successfully loaded base query, size: 1590 characters 
+2025-11-25 14:40:32 INFO  InstallerVerQueryExtractExecutor: - Loaded base query from file, length: 1580 characters 
+2025-11-25 14:40:32 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Internet_Sales_Cube_-_Postgres, Cube: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:40:32 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Internet_Sales_Cube_-_Postgres, Cube Name: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:40:32 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:40:32 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:40:32 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_jdbc_queries.json 
+2025-11-25 14:40:33 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:40:33 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:40:33 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_xmla_queries.json 
+2025-11-25 14:40:34 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor finished. 
+2025-11-25 14:40:40 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:40:40 WARN  AdditionalPropertiesLoader: - AWS region or secrets-key property not found. Skipping loading additional properties from AWS Secrets Manager. 
+2025-11-25 14:40:40 INFO  ConcurrentSimulationExecutor: - Starting task Internet Sales Cube - Postgres JDBC Concurrent User Simulation with command: [./mvnw, -Dgatling.simulationClass=com.atscale.java.jdbc.simulations.AtScaleClosedInjectionStepSimulation, -Dgatling.runDescription=Internet Sales Cube - Postgres JDBC Concurrent Cube Tests, -Datscale.model=SW50ZXJuZXQgU2FsZXMgQ3ViZSAtIFBvc3RncmVz, -Datscale.run.id=Q29uY3VycmVudFJ1bi1JbnRlcm5ldFNhbGVzQ3ViZS1Qb3N0Z3Jlcy1qZGJj, -Dgatling_run_logFileName=Internet_Sales_Cube_-_Postgres_jdbc_concurrent.log, -Dgatling_run_logAppend=false, -Datscale.gatling.injection.steps=W3sidXNlcnMiOjEsImR1cmF0aW9uTWludXRlcyI6MzAsInR5cGUiOiJDb25zdGFudENvbmN1cnJlbnRVc2Vyc0Nsb3NlZEluamVjdGlvblN0ZXAifV0=, -Dquery_ingestion_file=null, -Dquery_ingestion_file_has_header=false, -Dadditional_properties=eyJjYXRhbG9nTmFtZSI6IlNhbGVzIEluc2lnaHRzIC0gUG9zdGdyZXMiLCJtb2RlbE5hbWUiOiJJbnRlcm5ldCBTYWxlcyBDdWJlIC0gUG9zdGdyZXMiLCJqYXZheC5uZXQuc3NsLnRydXN0U3RvcmUiOiIuL2NhY2VydHMiLCJxdWVyeUZpbGUiOiJxdWVyaWVzL0ludGVybmV0IFNhbGVzIEN1YmUgLSBQb3N0Z3Jlc19qZGJjX3F1ZXJpZXMuanNvbiIsInByb3RvY29sIjoiamRiYyIsImJhc2VVcmwiOiJodHRwOi8vdWJ1bnR1LWF0c2NhbGUuYXRzY2FsZWRvbWFpbi5jb206MTA1MDAiLCJwYXNzd29yZCI6InBhc3N3b3JkIiwiY2F0YWxvZyI6IlNhbGVzIEluc2lnaHRzIC0gUG9zdGdyZXMiLCJqYXZheC5uZXQuc3NsLnRydXN0U3RvcmVQYXNzd29yZCI6ImNoYW5nZWl0IiwidXNlcm5hbWUiOiJhZG1pbiJ9, gatling:test] 
+2025-11-25 14:40:41 INFO  ConcurrentSimulationExecutor: - Starting task Internet Sales Cube - Postgres XMLA Concurrent User Simulation with command: [./mvnw, -Dgatling.simulationClass=com.atscale.java.xmla.simulations.AtScaleXmlaClosedInjectionStepSimulation, -Dgatling.runDescription=Internet Sales Cube - Postgres XMLA Concurrent Cube Tests, -Datscale.model=SW50ZXJuZXQgU2FsZXMgQ3ViZSAtIFBvc3RncmVz, -Datscale.run.id=Q29uY3VycmVudFJ1bi1JbnRlcm5ldFNhbGVzQ3ViZS1Qb3N0Z3Jlcy14bWxh, -Dgatling_run_logFileName=Internet_Sales_Cube_-_Postgres_xmla_concurrent.log, -Dgatling_run_logAppend=false, -Datscale.gatling.injection.steps=W3sidXNlcnMiOjEsImR1cmF0aW9uTWludXRlcyI6MzAsInR5cGUiOiJDb25zdGFudENvbmN1cnJlbnRVc2Vyc0Nsb3NlZEluamVjdGlvblN0ZXAifV0=, -Dquery_ingestion_file=null, -Dquery_ingestion_file_has_header=false, -Dadditional_properties=eyJjYXRhbG9nTmFtZSI6IlNhbGVzIEluc2lnaHRzIC0gUG9zdGdyZXMiLCJtb2RlbE5hbWUiOiJJbnRlcm5ldCBTYWxlcyBDdWJlIC0gUG9zdGdyZXMiLCJqYXZheC5uZXQuc3NsLnRydXN0U3RvcmUiOiIuL2NhY2VydHMiLCJxdWVyeUZpbGUiOiJxdWVyaWVzL0ludGVybmV0IFNhbGVzIEN1YmUgLSBQb3N0Z3Jlc194bWxhX3F1ZXJpZXMuanNvbiIsInByb3RvY29sIjoieG1sYSIsImJhc2VVcmwiOiJodHRwOi8vdWJ1bnR1LWF0c2NhbGUuYXRzY2FsZWRvbWFpbi5jb206MTA1MDAiLCJwYXNzd29yZCI6InBhc3N3b3JkIiwiY2F0YWxvZyI6IlNhbGVzIEluc2lnaHRzIC0gUG9zdGdyZXMiLCJqYXZheC5uZXQuc3NsLnRydXN0U3RvcmVQYXNzd29yZCI6ImNoYW5nZWl0IiwidXNlcm5hbWUiOiJhZG1pbiJ9, gatling:test] 
+2025-11-25 14:41:13 INFO  ConcurrentSimulationExecutor: - 🛑 Stop signal detected. Gracefully stopping simulation... 
+2025-11-25 14:41:13 INFO  ConcurrentSimulationExecutor: - 📁 Stop signal archived to: stop_simulation_1764081673691 
+2025-11-25 14:41:13 INFO  ConcurrentSimulationExecutor: - 🛑 Stopping all running processes... 
+2025-11-25 14:41:13 INFO  ConcurrentSimulationExecutor: - Destroying process... 
+2025-11-25 14:41:13 INFO  ConcurrentSimulationExecutor: - 🛑 Stop requested while waiting for task: Internet Sales Cube - Postgres JDBC Concurrent User Simulation 
+2025-11-25 14:41:13 INFO  ConcurrentSimulationExecutor: - 🛑 Stopping task Internet Sales Cube - Postgres JDBC Concurrent User Simulation due to stop signal 
+2025-11-25 14:41:13 INFO  ConcurrentSimulationExecutor: - 🛑 Task Internet Sales Cube - Postgres JDBC Concurrent User Simulation was stopped by user request 
+2025-11-25 14:41:14 INFO  ConcurrentSimulationExecutor: - Destroying process... 
+2025-11-25 14:41:15 INFO  ConcurrentSimulationExecutor: - 🛑 Stop requested while waiting for task: Internet Sales Cube - Postgres XMLA Concurrent User Simulation 
+2025-11-25 14:41:15 INFO  ConcurrentSimulationExecutor: - 🛑 Task Internet Sales Cube - Postgres XMLA Concurrent User Simulation was stopped by user request 
+2025-11-25 14:41:15 INFO  ConcurrentSimulationExecutor: - 🛑 Stopping all running processes... 
+2025-11-25 14:41:15 INFO  ConcurrentSimulationExecutor: - Run Log Path: /app/run_logs 
+2025-11-25 14:43:56 INFO  PropertiesManager: - Loading external properties file from path: /app/./working_dir/config/systems.properties 
+2025-11-25 14:43:56 WARN  AdditionalPropertiesLoader: - AWS region or secrets-key property not found. Skipping loading additional properties from AWS Secrets Manager. 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor started. 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - Loading base query from: /app/working_dir/config/base_query.sql 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - Successfully loaded base query, size: 1590 characters 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - Loaded base query from file, length: 1580 characters 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: ASASDefaultMembers, Cube: ASASDefaultMembers, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: Internet_Sales_Cube_-_Postgres, Cube: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - Found cube configuration - Identifier: ASAdventureSmall, Cube: ASAdventureSmall, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: Internet_Sales_Cube_-_Postgres, Cube Name: Internet Sales Cube - Postgres, Catalog: Sales Insights - Postgres 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:43:56 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:43:56 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_jdbc_queries.json 
+2025-11-25 14:43:57 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: Internet Sales Cube - Postgres 
+2025-11-25 14:43:57 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: Internet Sales Cube - Postgres, cubeName: Internet Sales Cube - Postgres 
+2025-11-25 14:43:57 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model Internet Sales Cube - Postgres to file: working_dir/queries/Internet Sales Cube - Postgres_xmla_queries.json 
+2025-11-25 14:43:58 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: ASASDefaultMembers, Cube Name: ASASDefaultMembers, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:43:58 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: ASASDefaultMembers 
+2025-11-25 14:43:58 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: ASASDefaultMembers, cubeName: ASASDefaultMembers 
+2025-11-25 14:43:58 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model ASASDefaultMembers to file: working_dir/queries/ASASDefaultMembers_jdbc_queries.json 
+2025-11-25 14:43:58 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'ASASDefaultMembers'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:43:58 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:43:58 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:43:58 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: ASASDefaultMembers 
+2025-11-25 14:43:58 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: ASASDefaultMembers, cubeName: ASASDefaultMembers 
+2025-11-25 14:43:58 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model ASASDefaultMembers to file: working_dir/queries/ASASDefaultMembers_xmla_queries.json 
+2025-11-25 14:43:59 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'analysis' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'ASASDefaultMembers'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:43:59 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:43:59 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+2025-11-25 14:43:59 INFO  InstallerVerQueryExtractExecutor: - Processing cube - Identifier: ASAdventureSmall, Cube Name: ASAdventureSmall, Catalog: AdventureWorksDW2012Multidimensional-EE 
+2025-11-25 14:43:59 INFO  InstallerVerQueryExtractExecutor: - Caching JDBC queries for cube: ASAdventureSmall 
+2025-11-25 14:43:59 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheJdbcQueries with model: ASAdventureSmall, cubeName: ASAdventureSmall 
+2025-11-25 14:43:59 INFO  QueryHistoryFileUtil: - Caching JDBC queries for model ASAdventureSmall to file: working_dir/queries/ASAdventureSmall_jdbc_queries.json 
+2025-11-25 14:44:00 WARN  AtScalePostgresDao: - No results returned from query. QueryExtract SQL: 
+ SELECT
+                q.service,
+                q.query_language,
+                q.query_text as inbound_text,
+                MAX(s.subquery_text) as outbound_text,
+                p.cube_name,
+                p.project_id,
+                case when MAX(s.subquery_text) like '%as_agg_%' then true else false end as used_agg,
+                COUNT(*)                             AS num_times,
+                AVG(r.finished - p.planning_started) AS elasped_time_in_seconds,
+                AVG(r.result_size)                   AS avg_result_size
+            FROM
+                atscale.queries q
+            INNER JOIN
+                atscale.query_results r
+            ON
+                q.query_id=r.query_id
+            INNER JOIN
+                atscale.queries_planned p
+            ON
+                q.query_id=p.query_id
+            INNER JOIN
+                atscale.subqueries s
+            ON
+                q.query_id=s.query_id
+            WHERE
+                q.query_language = 'sql' AND
+                p.planning_started > current_timestamp - interval '60 day'
+                and p.cube_name = 'ASAdventureSmall'
+                AND q.service = 'user-query'
+                AND r.succeeded = true
+                AND LENGTH(q.query_text) > 100
+                AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
+                AND q.query_text NOT LIKE '-- statement does not return rows%'
+            GROUP BY
+                1,
+                2,
+                3,
+                5,
+                6
+            ORDER BY 3
+            limit 2 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Check your Model (cube name) and Query Language.  We extract from known queries. The following Model and Query Language combinations were found: 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: AtScale Usage, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: pgsql 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: pgsql 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: Enterprise Sales, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: Warranty20, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: 711CustomDate, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: KeyBusPandL, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: cigna_many2many, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: ae3-inventory, Query Language: pgsql 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: pgsql 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: Internet Sales Cube - Postgres, Query Language: sql 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: Internet Sales Cube, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: pgsql 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: NikeProdSeason, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: ASAdventureSmall, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: NikeInventory, Query Language: analysis 
+2025-11-25 14:44:00 INFO  AtScalePostgresDao: - Model: ae4, Query Language: analysis 
+2025-11-25 14:44:00 WARN  QueryHistoryFileUtil: - Validation error No results returned for the user provided query. 
+java.lang.IllegalArgumentException: No results returned for the user provided query.
+	at com.atscale.java.utils.QueryHistoryFileUtil.validate(QueryHistoryFileUtil.java:103)
+	at com.atscale.java.utils.QueryHistoryFileUtil.cacheJdbcQueries(QueryHistoryFileUtil.java:76)
+	at executors.InstallerVerQueryExtractExecutor.cacheJdbcQueries(InstallerVerQueryExtractExecutor.java:125)
+	at executors.InstallerVerQueryExtractExecutor.execute(InstallerVerQueryExtractExecutor.java:52)
+	at executors.InstallerVerQueryExtractExecutor.main(InstallerVerQueryExtractExecutor.java:27)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at GatlingMain.runExecutor(GatlingMain.java:66)
+	at GatlingMain.main(GatlingMain.java:39)
+2025-11-25 14:44:00 INFO  InstallerVerQueryExtractExecutor: - Caching XMLA queries for cube: ASAdventureSmall 
+2025-11-25 14:44:00 INFO  InstallerVerQueryExtractExecutor: - Calling QueryHistoryFileUtil.cacheXmlaQueries with model: ASAdventureSmall, cubeName: ASAdventureSmall 
+2025-11-25 14:44:00 INFO  QueryHistoryFileUtil: - Caching XMLA queries for model ASAdventureSmall to file: working_dir/queries/ASAdventureSmall_xmla_queries.json 
+2025-11-25 14:44:01 INFO  InstallerVerQueryExtractExecutor: - QueryExtractExecutor finished. 

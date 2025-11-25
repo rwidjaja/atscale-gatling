@@ -1,0 +1,27 @@
+[ {
+  "queryName" : "Query 1",
+  "service" : "user-query",
+  "queryLanguage" : "analysis",
+  "inboundText" : "/* Virtual query to fulfill MDSCHEMA_MEMBERS with TREE_OP:1 */ SELECT [DateCustom].[StandardMonth].[Year].&[2000-01-01T00:00:00].Children ON 0 FROM [ASAdventureSmall]",
+  "inboundTextAsMd5Hash" : "2ddaf8c4fc45ea9cdca13ecdcc40d20f",
+  "outboundText" : "SELECT\n   t_124.year_c9_c121 AS c0,\n   t_124.key_c4_c123 AS c1s0,\n   t_124.key_c1_c118 AS c2s0,\n   t_124.half_year_c7_c120 AS c3,\n   t_124.key_c2_c119 AS c4s0,\n   t_124.key_c6_c122 AS c5s0,\n   CONCAT('[DateCustom].[StandardMonth].[Year]', '.&[', COALESCE(CAST(FORMATDATETIME(t_124.key_c4_c123, 'yyyy-MM-dd''T''HH:mm:ss') AS VARCHAR), '__NULL__'), ']', '.&[', COALESCE(CAST(FORMATDATETIME(t_124.key_c2_c119, 'yyyy-MM-dd''T''HH:mm:ss') AS VARCHAR), '__NULL__'), ']') AS c6,\n   CONCAT('[DateCustom].[StandardMonth].[Year]', '.&[', COALESCE(CAST(FORMATDATETIME(t_124.key_c4_c123, 'yyyy-MM-dd''T''HH:mm:ss') AS VARCHAR), '__NULL__'), ']') AS c7\nFROM\n(\n   SELECT\n      as_agg_52489dbf_hl_t117.half_year_c7 AS half_year_c7_c120,\n      as_agg_52489dbf_hl_t117.key_c1 AS key_c1_c118,\n      as_agg_52489dbf_hl_t117.key_c2 AS key_c2_c119,\n      as_agg_52489dbf_hl_t117.key_c4 AS key_c4_c123,\n      as_agg_52489dbf_hl_t117.key_c6 AS key_c6_c122,\n      as_agg_52489dbf_hl_t117.year_c9 AS year_c9_c121\n   FROM\n      tablecache.as_agg_52489dbf_hlfyr_qrtr_yr AS as_agg_52489dbf_hl_t117\n   WHERE\n      as_agg_52489dbf_hl_t117.key_c4 = '2000-01-01 00:00:00.000000000'\n   GROUP BY\n      as_agg_52489dbf_hl_t117.half_year_c7,\n      as_agg_52489dbf_hl_t117.key_c1,\n      as_agg_52489dbf_hl_t117.key_c2,\n      as_agg_52489dbf_hl_t117.key_c4,\n      as_agg_52489dbf_hl_t117.key_c6,\n      as_agg_52489dbf_hl_t117.year_c9\n) AS t_124\nWHERE\n   true\nGROUP BY\n   t_124.year_c9_c121,\n   t_124.key_c4_c123,\n   t_124.key_c1_c118,\n   t_124.half_year_c7_c120,\n   t_124.key_c2_c119,\n   t_124.key_c6_c122,\n   CONCAT('[DateCustom].[StandardMonth].[Year]', '.&[', COALESCE(CAST(FORMATDATETIME(t_124.key_c4_c123, 'yyyy-MM-dd''T''HH:mm:ss') AS VARCHAR), '__NULL__'), ']', '.&[', COALESCE(CAST(FORMATDATETIME(t_124.key_c2_c119, 'yyyy-MM-dd''T''HH:mm:ss') AS VARCHAR), '__NULL__'), ']'),\n   CONCAT('[DateCustom].[StandardMonth].[Year]', '.&[', COALESCE(CAST(FORMATDATETIME(t_124.key_c4_c123, 'yyyy-MM-dd''T''HH:mm:ss') AS VARCHAR), '__NULL__'), ']')\nORDER BY\n   t_124.half_year_c7_c120 ASC\nLIMIT 400 ",
+  "cubeName" : "ASAdventureSmall",
+  "projectId" : "b44df2cc-fb81-4412-52d5-d6acd2e05bae",
+  "aggregateUsed" : true,
+  "numTimes" : 162,
+  "elapsedTimeInSeconds" : 82,
+  "avgResultSetSize" : 2
+}, {
+  "queryName" : "Query 2",
+  "service" : "user-query",
+  "queryLanguage" : "analysis",
+  "inboundText" : "SELECT \n { [Measures].[rolling-2 years] }  ON COLUMNS, \n  SUBSET( Hierarchize(  { [AccountBalance].[Account Type].[Account Type].Members }  )  , 0, 300)DIMENSION PROPERTIES HIERARCHY_UNIQUE_NAME, PARENT_UNIQUE_NAME ON ROWS \n  FROM [ASAdventureSmall]",
+  "inboundTextAsMd5Hash" : "771741eb7d7aa66a16f4f4b3b8b1f153",
+  "outboundText" : "SELECT\n   MIN(\"t_67\".\"c_29\") AS \"c0\",\n   \"t_67\".\"c1\" AS \"c1\",\n   \"t_67\".\"c2s0\" AS \"c2s0\",\n   \"t_67\".\"c3s0\" AS \"c3s0\",\n   \"t_67\".\"c4\" AS \"c4\"\nFROM\n(\n   SELECT\n      CAST(SUM(CAST(NULL AS BIGINT)) AS BIGINT) AS \"c_29\",\n      \"t_62\".\"c1\" AS \"c1\",\n      \"t_62\".\"c2s0\" AS \"c2s0\",\n      \"t_62\".\"c3s0\" AS \"c3s0\",\n      CASE WHEN (   CAST('[AccountBalance].[Account Type].[Account Type]' AS TEXT) IS NULL\nOR\n   CAST('.&[' AS TEXT) IS NULL\nOR\n   COALESCE(CAST(\"t_62\".\"c2s0\" AS TEXT), CAST('__NULL__' AS TEXT)) IS NULL\nOR\n   CAST(']' AS TEXT) IS NULL) THEN NULL ELSE CONCAT(CAST('[AccountBalance].[Account Type].[Account Type]' AS TEXT), CAST('.&[' AS TEXT), COALESCE(CAST(\"t_62\".\"c2s0\" AS TEXT), CAST('__NULL__' AS TEXT)), CAST(']' AS TEXT)) END AS \"c4\"\n   FROM\n   (\n      SELECT\n         CAST(NULL AS BIGINT) AS \"c_29\",\n         \"dimaccount_t61\".\"accounttype\" AS \"c1\",\n         \"dimaccount_t61\".\"accounttype\" AS \"c2s0\",\n         \"dimaccount_t61\".\"accounttype\" AS \"c3s0\"\n      FROM\n         \"asadventure\".\"dimaccount\" AS \"dimaccount_t61\"\n      WHERE\n         true\n      GROUP BY\n         2,\n         3,\n         4\n   ) AS \"t_62\"\n   GROUP BY\n      2,\n      3,\n      4,\n      5\n) AS \"t_67\"\nGROUP BY\n   2,\n   3,\n   4,\n   5\nORDER BY\n   2 ASC NULLS FIRST",
+  "cubeName" : "ASAdventureSmall",
+  "projectId" : "9d249ee3-7290-4d81-84c7-2101c093fa1a",
+  "aggregateUsed" : false,
+  "numTimes" : 1,
+  "elapsedTimeInSeconds" : 139,
+  "avgResultSetSize" : 8
+} ]

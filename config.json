@@ -1,0 +1,20 @@
+{
+  "username": "admin",
+  "password": "password",
+  "host": "ubuntu-atscale.atscaledomain.com",
+  "postgres_host": "ubuntu-atscale.atscaledomain.com",
+  "token": "37022d31-a848-4e89-71de-7047cc69ee77",
+  "proxy": "",
+  "proxyport":"",
+  "proxy_username": "",
+  "proxy_password": "",
+  "aws.region": "",
+  "aws.secrets-key": "",
+  "snowflake.archive.account": "",
+  "snowflake.archive.warehouse": "",
+  "snowflake.archive.database": "",
+  "snowflake.archive.schema": "",
+  "snowflake.archive.role": "",
+  "snowflake.archive.username": "",
+  "snowflake.archive.password": ""
+}
