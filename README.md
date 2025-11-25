@@ -70,7 +70,7 @@ python3 atscale-gatling.py
 
 ## 🧭 Running the scripts (CLI / GUI examples)
 
-Use the hyphenated script filenames `atscale-gatling.py` and `atscale-gatling-gui.py`.
+Use the hyphenated script filenames `atscale-gatling-gui.py`.
 
 - Auto-detect mode (CLI over SSH):
 
@@ -81,7 +81,7 @@ python3 atscale-gatling-gui.py
 - Force GUI mode:
 
 ```bash
-python3 atscale-gatling.py --mode gui
+python3 atscale-gatling-gui.py --mode gui
 ```
 
 - Force CLI mode:
