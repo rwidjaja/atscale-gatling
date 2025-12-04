@@ -1,0 +1,23 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.env/
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Configs or secrets
+config.json
+cacerts
+
+# Docker artifacts
+working_dir/
