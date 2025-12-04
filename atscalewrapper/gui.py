@@ -252,17 +252,30 @@ class AtScaleGatlingGUI:
         
         # Open CSV configuration window
         CSVConfigWindow(self.root, self.core, selected_models, self.on_csv_config_saved)
+        
+    def set_csv_mode(self, file_assignments):
+        """Set CSV mode with file assignments"""
+        self.csv_mode = True
+        self.csv_file_assignments = file_assignments
+        print(f"✅ CSV mode enabled with {len(file_assignments)} catalog/cube pairs")
+        
+    def clear_csv_mode(self):
+        """Clear CSV mode"""
+        self.csv_mode = False
+        self.csv_file_assignments = None
+        print("✅ CSV mode cleared")
     
     def on_csv_config_saved(self, file_assignments):
         """Callback when CSV configuration is saved"""
         self.csv_file_assignments = file_assignments
+        # Set CSV mode in core
+        self.core.set_csv_mode(file_assignments)
         
         # Update mode indicator
         self.mode_label.config(text="Mode: CSV File (will read from CSV files)", fg='green')
         
         self.log_activity("✅ CSV configuration saved. Systems.properties updated with setIngestionFileName entries.")
         self.log_activity("⚠️  Executors will now read from CSV files instead of making live JDBC/XMLA calls.")
-    
     # ==================== SIMULATION METHODS ====================
     
     def start_simulation(self):
@@ -322,11 +335,11 @@ class AtScaleGatlingGUI:
     def run_simulation_background(self, executor, selected_models):
         """Run simulation in background thread"""
         try:
+            # Don't pass file_assignments - systems.properties is already written
             success = self.core.run_executor(
                 executor, 
                 selected_models, 
-                follow_logs=False, 
-                file_assignments=self.csv_file_assignments
+                follow_logs=False
             )
             
             if success:
@@ -369,6 +382,9 @@ class AtScaleGatlingGUI:
         
         # Stop tailing logs
         self.stop_tail_logs()
+        
+        # Don't reset CSV mode - let user run multiple times with same CSV config
+        # Only reset if user explicitly clears selection or clicks "Load From CSV" again
         
         # Don't reset CSV mode - let user run multiple times with same CSV config
     

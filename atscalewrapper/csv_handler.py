@@ -2,7 +2,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
-import json
+import shutil
 from datetime import datetime
 
 class CSVConfigWindow:
@@ -37,7 +37,7 @@ class CSVConfigWindow:
         """Setup the CSV configuration window"""
         self.window = tk.Toplevel(self.parent)
         self.window.title("CSV File Configuration")
-        self.window.geometry("1100x600")
+        self.window.geometry("1100x700")
         
         # Main container
         main_frame = tk.Frame(self.window, padx=10, pady=10)
@@ -52,18 +52,19 @@ class CSVConfigWindow:
         # Instructions
         instr_label = tk.Label(main_frame,
                               text="For each selected model, assign JDBC and MDX query CSV files.\n" +
-                                   "If setIngestionFileName is present in systems.properties, executors will read from CSV instead of making live calls.",
+                                   "Files will be copied to ./working_dir/ingest/ folder.\n" +
+                                   "setIngestionFileName will be set to just the filename (no path).",
                               font=('Arial', 10),
                               justify=tk.LEFT)
         instr_label.pack(pady=(0, 10))
         
-        # BUTTONS AT THE TOP - MOVED HERE
+        # BUTTONS AT THE TOP
         button_frame = tk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=(0, 15))
         
         tk.Button(button_frame, text="Save CSV Configuration", 
                  command=self.save_configuration,
-                 bg="#F5F8F5", fg='black', font=('Arial', 11, 'bold'),
+                 bg="#F6F8F6", fg='black', font=('Arial', 11, 'bold'),
                  width=20).pack(side=tk.LEFT, padx=5)
         
         tk.Button(button_frame, text="Cancel", 
@@ -179,14 +180,17 @@ class CSVConfigWindow:
         )
         
         if filename:
-            # Update label
-            label_widget.config(text=os.path.basename(filename), fg='green')
+            # Show just filename in label
+            basename = os.path.basename(filename)
+            label_widget.config(text=basename, fg='green')
             
-            # Update data structure with full path
+            # Store full path temporarily
             if file_type == "jdbc":
                 self.file_assignments[pair]['jdbc_file'] = filename
+                self.file_assignments[pair]['jdbc_original_path'] = filename
             else:
                 self.file_assignments[pair]['xmla_file'] = filename
+                self.file_assignments[pair]['xmla_original_path'] = filename
                 
     def validate_assignments(self):
         """Validate that all required files are assigned"""
@@ -202,7 +206,7 @@ class CSVConfigWindow:
         return True, []
     
     def save_configuration(self):
-        """Save the CSV configuration"""
+        """Save the CSV configuration and copy files to ingest folder"""
         # Validate all files are assigned
         is_valid, missing = self.validate_assignments()
         if not is_valid:
@@ -212,14 +216,47 @@ class CSVConfigWindow:
             return
         
         try:
-            # Convert BooleanVar to actual boolean values
+            # Ensure ingest directory exists
+            ingest_dir = self.core.ingest_dir
+            os.makedirs(ingest_dir, exist_ok=True)
+            
+            # Process assignments: copy files to ingest folder and store just filenames
             processed_assignments = {}
+            
             for pair, assignment in self.file_assignments.items():
+                jdbc_file = assignment['jdbc_file']
+                xmla_file = assignment['xmla_file']
+                
+                # Copy JDBC file to ingest folder
+                jdbc_filename = None
+                if jdbc_file:
+                    jdbc_basename = os.path.basename(jdbc_file)
+                    jdbc_target = os.path.join(ingest_dir, jdbc_basename)
+                    
+                    # Copy if source and target are different
+                    if os.path.abspath(jdbc_file) != os.path.abspath(jdbc_target):
+                        shutil.copy2(jdbc_file, jdbc_target)
+                    
+                    jdbc_filename = jdbc_basename
+                
+                # Copy XMLA file to ingest folder
+                xmla_filename = None
+                if xmla_file:
+                    xmla_basename = os.path.basename(xmla_file)
+                    xmla_target = os.path.join(ingest_dir, xmla_basename)
+                    
+                    # Copy if source and target are different
+                    if os.path.abspath(xmla_file) != os.path.abspath(xmla_target):
+                        shutil.copy2(xmla_file, xmla_target)
+                    
+                    xmla_filename = xmla_basename
+                
+                # Store processed assignment with just filenames
                 processed_assignments[pair] = {
-                    'jdbc_file': assignment['jdbc_file'],
-                    'xmla_file': assignment['xmla_file'],
-                    'jdbc_has_header': assignment['jdbc_has_header'].get(),  # Get actual boolean
-                    'xmla_has_header': assignment['xmla_has_header'].get()   # Get actual boolean
+                    'jdbc_file': jdbc_filename,
+                    'xmla_file': xmla_filename,
+                    'jdbc_has_header': assignment['jdbc_has_header'].get(),
+                    'xmla_has_header': assignment['xmla_has_header'].get()
                 }
             
             # Write systems.properties with CSV configuration
@@ -228,10 +265,10 @@ class CSVConfigWindow:
                 processed_assignments
             )
             
-            # Update main config with processed file assignments (with actual booleans)
+            # Update main config with processed file assignments (just filenames)
             self.config_callback(processed_assignments)
             
-            self.status_label.config(text="✅ CSV configuration saved! Systems.properties updated.", fg='green')
+            self.status_label.config(text="✅ CSV configuration saved! Files copied to ingest folder.", fg='green')
             
             # Close window after a short delay
             self.window.after(1500, self.window.destroy)
@@ -245,7 +282,14 @@ class CSVConfigWindow:
         for pair in self.selected_pairs:
             self.file_assignments[pair]['jdbc_file'] = ''
             self.file_assignments[pair]['xmla_file'] = ''
-            self.file_assignments[pair]['jdbc_label'].config(text="Not selected", fg='red')
-            self.file_assignments[pair]['xmla_label'].config(text="Not selected", fg='red')
+            if 'jdbc_label' in self.file_assignments[pair]:
+                self.file_assignments[pair]['jdbc_label'].config(text="Not selected", fg='red')
+            if 'xmla_label' in self.file_assignments[pair]:
+                self.file_assignments[pair]['xmla_label'].config(text="Not selected", fg='red')
         
         self.status_label.config(text="✓ All assignments cleared", fg='orange')
+    
+    def log_activity(self, message):
+        """Log activity message to status"""
+        self.status_label.config(text=message)
+        self.window.update()

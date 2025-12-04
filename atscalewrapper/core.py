@@ -69,6 +69,8 @@ class AtScaleGatlingCore:
         self.is_running = False
         self.current_executor = None
         self.catalog_cube_pairs = []
+        self.csv_mode = False  # Track if we're in CSV mode
+        self.csv_file_assignments = None  # Store CSV file assignments
 
     def discover_and_setup(self):
         """Discover catalogs/cubes"""
@@ -202,7 +204,7 @@ class AtScaleGatlingCore:
                 f.write(f"atscale.{cube_key}.jdbc.maxPoolSize=10\n")
                 f.write(f"atscale.{cube_key}.jdbc.log.resultset.rows=true\n")
                 
-                # Add CSV configuration if provided
+                # Add CSV configuration if provided - JUST FILENAME, NO PATH
                 if file_assignments and pair in file_assignments:
                     assignment = file_assignments[pair]
                     jdbc_file = assignment.get('jdbc_file', '')
@@ -211,6 +213,7 @@ class AtScaleGatlingCore:
                     xmla_has_header = assignment.get('xmla_has_header', True)
                     
                     if jdbc_file:
+                        # Just filename, no path - Docker will look in working_dir/ingest
                         f.write(f"atscale.{cube_key}.jdbc.setIngestionFileName={jdbc_file}\n")
                         f.write(f"atscale.{cube_key}.jdbc.setIngestionFileHasHeader={str(jdbc_has_header).lower()}\n")
                 
@@ -222,13 +225,14 @@ class AtScaleGatlingCore:
                 f.write(f"atscale.{cube_key}.xmla.auth.username={self.cfg['username']}\n")
                 f.write(f"atscale.{cube_key}.xmla.auth.password={self.cfg['password']}\n")
                 
-                # Add CSV configuration if provided
+                # Add CSV configuration if provided - JUST FILENAME, NO PATH
                 if file_assignments and pair in file_assignments:
                     assignment = file_assignments[pair]
                     xmla_file = assignment.get('xmla_file', '')
                     xmla_has_header = assignment.get('xmla_has_header', True)
                     
                     if xmla_file:
+                        # Just filename, no path - Docker will look in working_dir/ingest
                         f.write(f"atscale.{cube_key}.xmla.setIngestionFileName={xmla_file}\n")
                         f.write(f"atscale.{cube_key}.xmla.setIngestionFileHasHeader={str(xmla_has_header).lower()}\n")
                 
@@ -304,6 +308,11 @@ class AtScaleGatlingCore:
         cmd.extend([self.DOCKER_IMAGE, executor_name, "working_dir/config/systems.properties"])
         return cmd
         
+    def set_csv_mode(self, file_assignments):
+        """Set CSV mode with file assignments"""
+        self.csv_file_assignments = file_assignments
+        print(f"✅ CSV mode enabled with {len(file_assignments)} catalog/cube pairs")
+        
     def ensure_docker_image(self):
         """Check and pull Docker image if needed"""
         try:
@@ -318,6 +327,82 @@ class AtScaleGatlingCore:
         except:
             return False
             
+    def write_systems_properties(self, selected_pairs):
+        """Write systems.properties file with selected catalog/cube pairs (LIVE MODE)"""
+        if not selected_pairs:
+            raise ValueError("No catalog/cube pairs selected")
+            
+        cubes = [pair.split("::")[1].strip() for pair in selected_pairs]
+        catalogs = [pair.split("::")[0].strip() for pair in selected_pairs]
+
+        filepath = os.path.join(self.config_dir, "systems.properties")
+
+        with open(filepath, "w") as f:
+            f.write("# Live Mode - Executors will make live JDBC/XMLA calls\n")
+            f.write("atscale.schema.type=installer\n")
+            f.write("atscale.models=" + ", ".join(catalogs) + "\n")
+
+            for pair in selected_pairs:
+                catalog, cube = [p.strip() for p in pair.split("::")]
+                cube_key = cube.replace(" ", "_")
+                catalog_jdbc_name = catalog.replace(" ", "%20")
+
+                f.write(f"# {catalog} :: {cube}\n")
+                f.write(f"atscale.{cube_key}.jdbc.url=jdbc:postgresql://{self.cfg['host']}:15432/{catalog_jdbc_name}\n")
+                f.write(f"atscale.{cube_key}.jdbc.username={self.cfg['username']}\n")
+                f.write(f"atscale.{cube_key}.jdbc.password={self.cfg['password']}\n")
+                f.write(f"atscale.{cube_key}.jdbc.maxPoolSize=10\n")
+                f.write(f"atscale.{cube_key}.jdbc.log.resultset.rows=true\n")
+                f.write(f"atscale.{cube_key}.xmla.auth.url=https://{self.cfg['host']}:10500/default/auth\n")
+                f.write(f"atscale.{cube_key}.xmla.url=https://{self.cfg['host']}:10502/xmla/default/{self.cfg['token']}\n")
+                f.write(f"atscale.{cube_key}.xmla.cube={cube}\n")
+                f.write(f"atscale.{cube_key}.xmla.catalog={catalog}\n")
+                f.write(f"atscale.{cube_key}.xmla.log.responsebody=true\n")
+                f.write(f"atscale.{cube_key}.xmla.auth.username={self.cfg['username']}\n")
+                f.write(f"atscale.{cube_key}.xmla.auth.password={self.cfg['password']}\n")
+                f.write("# \n")
+
+            f.write(f"atscale.postgres.jdbc.url=jdbc:postgresql://{self.cfg['postgres_host']}:10520/atscale\n")
+            f.write("atscale.postgres.jdbc.username=atscale\n")
+            f.write("atscale.postgres.jdbc.password=atscale\n")
+            f.write("#System Parameter\n")
+            f.write("atscale.gatling.throttle.ms=5\n")
+            f.write("atscale.xmla.maxConnectionsPerHost=20\n")
+            f.write("atscale.xmla.useAggregates=true\n")
+            f.write("atscale.xmla.generateAggregates=false\n")
+            f.write("atscale.xmla.useQueryCache=false\n")
+            f.write("atscale.xmla.useAggregateCache=true\n")
+            f.write("atscale.jdbc.useAggregates=true\n")
+            f.write("atscale.jdbc.generateAggregates=false\n")
+            f.write("atscale.jdbc.useLocalCache=false\n")
+            
+            # Add AWS config if present
+            if self.cfg.get("aws.region"):
+                f.write(f"aws.region={self.cfg['aws.region']}\n")
+            if self.cfg.get("aws.secrets-key"):
+                f.write(f"aws.secrets-key={self.cfg['aws.secrets-key']}\n")
+                
+            # Add Snowflake config if present
+            if self.cfg.get("snowflake.archive.account"):
+                f.write(f"snowflake.archive.account={self.cfg['snowflake.archive.account']}\n")
+            if self.cfg.get("snowflake.archive.warehouse"):
+                f.write(f"snowflake.archive.warehouse={self.cfg['snowflake.archive.warehouse']}\n")
+            if self.cfg.get("snowflake.archive.database"):
+                f.write(f"snowflake.archive.database={self.cfg['snowflake.archive.database']}\n")
+            if self.cfg.get("snowflake.archive.schema"):
+                f.write(f"snowflake.archive.schema={self.cfg['snowflake.archive.schema']}\n")
+            if self.cfg.get("snowflake.archive.role"):
+                f.write(f"snowflake.archive.role={self.cfg['snowflake.archive.role']}\n")
+            if self.cfg.get("snowflake.archive.username"):
+                f.write(f"snowflake.archive.username={self.cfg['snowflake.archive.username']}\n")
+            if self.cfg.get("snowflake.archive.password"):
+                f.write(f"snowflake.archive.password={self.cfg['snowflake.archive.token']}\n")
+            if self.cfg.get("snowflake.archive.token"):
+                f.write(f"snowflake.archive.token={self.cfg['snowflake.archive.token']}\n")
+                
+        print(f"✅ systems.properties regenerated for Live mode with {len(selected_pairs)} selected pairs")
+        
+        
     def run_executor(self, executor_name, selected_pairs, follow_logs=False):
         """Run an executor with selected catalog/cube pairs"""
         if self.is_running:
@@ -328,8 +413,31 @@ class AtScaleGatlingCore:
         self.current_executor = executor_name
         
         try:
-            # Regenerate systems.properties with selected pairs
-            self.write_systems_properties(selected_pairs)
+            # Check if we have CSV file assignments for any of the selected pairs
+            should_write_csv = False
+            if hasattr(self, 'csv_file_assignments') and self.csv_file_assignments:
+                # Check if any selected pair has CSV assignments
+                for pair in selected_pairs:
+                    if pair in self.csv_file_assignments:
+                        should_write_csv = True
+                        break
+            
+            if should_write_csv:
+                # Filter assignments to only include selected pairs
+                filtered_assignments = {}
+                for pair in selected_pairs:
+                    if pair in self.csv_file_assignments:
+                        filtered_assignments[pair] = self.csv_file_assignments[pair]
+                
+                if filtered_assignments:
+                    self.write_systems_properties_with_csv(selected_pairs, filtered_assignments)
+                    mode_str = "CSV file"
+                else:
+                    self.write_systems_properties(selected_pairs)
+                    mode_str = "live catalog/cube"
+            else:
+                self.write_systems_properties(selected_pairs)
+                mode_str = "live catalog/cube"
             
             if not self.ensure_docker_image():
                 print("❌ Docker image not available")
@@ -339,9 +447,10 @@ class AtScaleGatlingCore:
             
             # Build Docker command
             cmd = self.build_docker_command(executor_name)
-            
-            print(f"🐳 Running {executor_name} with {len(selected_pairs)} selected models...")
-            print(f"Command: {' '.join(cmd)}")
+           
+           # Debug: print command and mode 
+           # print(f"🐳 Running {executor_name} in {mode_str} mode with {len(selected_pairs)} selected models...")
+           # print(f"Command: {' '.join(cmd)}")
             
             with open(log_file, "w") as f:
                 self.current_process = subprocess.Popen(cmd, stdout=f, stderr=subprocess.STDOUT)
@@ -354,7 +463,7 @@ class AtScaleGatlingCore:
                 self.current_process.wait()
                 
             if self.current_process.returncode == 0:
-                print(f"✅ {executor_name} completed successfully")
+                print(f"✅ {executor_name} completed successfully ({mode_str} mode)")
                 return True
             else:
                 print(f"❌ {executor_name} failed with exit code {self.current_process.returncode}")
