@@ -1,0 +1,19 @@
+{
+  "username": "admin",
+  "password": "password",
+  "host": "atscale-cluster-node",
+  "postgres_host": "postgres-host-node",
+  "token": "atscale-xmla-token",
+  "proxy": "",
+  "proxyport":"",
+  "aws.region": "",
+  "aws.secrets-key": "",
+  "snowflake.archive.account": "",
+  "snowflake.archive.warehouse": "",
+  "snowflake.archive.database": "",
+  "snowflake.archive.schema": "",
+  "snowflake.archive.role": "",
+  "snowflake.archive.username": "",
+  "snowflake.archive.password": "",
+  "snowflake.archive.token": ""
+}

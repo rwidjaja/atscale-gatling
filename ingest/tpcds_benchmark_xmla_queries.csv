@@ -1,0 +1,21 @@
+sampler_name,sql_text
+MDX-1,"SELECT  FROM [TPC-DS Benchmark Model] WHERE ([Measures].[m_ss_quantity_sum]) CELL PROPERTIES VALUE, FORMAT_STRING, LANGUAGE, BACK_COLOR, FORE_COLOR, FONT_FLAGS"
+MDX-2,"SELECT NON EMPTY
+Hierarchize(DrilldownMember({{DrilldownLevel({[Sold Date Dimension].[Sold Date Dimension].[All]},,,INCLUDE_CALC_MEMBERS)}},
+{[Sold Date Dimension].[Sold Date Dimension].[Sold Calendar Year].&[1998],
+[Sold Date Dimension].[Sold Date Dimension].[Sold Calendar Year].&[2001],
+[Sold Date Dimension].[Sold Date Dimension].[Sold Calendar Year].&[2003]},,,INCLUDE_CALC_MEMBERS))
+DIMENSION PROPERTIES PARENT_UNIQUE_NAME,
+HIERARCHY_UNIQUE_NAME ON COLUMNS
+FROM [TPC-DS Benchmark Model] CELL PROPERTIES VALUE, FORMAT_STRING, LANGUAGE, BACK_COLOR, FORE_COLOR, FONT_FLAGS"
+MDX-3,"SELECT {[Measures].[m_cs_ext_sales_price_sum],
+[Measures].[m_cs_ext_tax_sum],
+[Measures].[m_cs_ext_discount_amt_sum]}
+DIMENSION PROPERTIES PARENT_UNIQUE_NAME,HIERARCHY_UNIQUE_NAME ON COLUMNS ,
+NON EMPTY
+CrossJoin(CrossJoin(Hierarchize({DrilldownLevel({[Catalog_Sales_Price_Tier].[Catalog Sales Price Tier].[All]},,,INCLUDE_CALC_MEMBERS)}),
+Hierarchize({DrilldownLevel({[Customer Address].[Customer Address].[All]},,,INCLUDE_CALC_MEMBERS)})),
+Hierarchize({DrilldownLevel({[Customer Demographics].[Customer Demographics].[All]},,,INCLUDE_CALC_MEMBERS)}))
+DIMENSION PROPERTIES PARENT_UNIQUE_NAME,HIERARCHY_UNIQUE_NAME ON ROWS
+FROM [TPC-DS Benchmark Model] CELL PROPERTIES VALUE, FORMAT_STRING, LANGUAGE, BACK_COLOR, FORE_COLOR, FONT_FLAGS"
+DAX-1,"EVALUATE ROW(""Avg Unit Net Profit"", [Average Catalog Unit Net Profit])"

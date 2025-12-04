@@ -1,0 +1,52 @@
+TPCDS15," -- TPC-DS_query 15
+           SELECT
+             ""TPC-DS Benchmark Model"".""d_customer_zip_code"" AS ""d_customer_zip_code"",
+             SUM(""TPC-DS Benchmark Model"".""m_CS_SALES_PRICE_sum"") AS ""sum_m_cs_sales_price_sum_ok""
+           FROM
+             ""TPC-DS Benchmark Model - Snowflake - 1GB"".""tpc-ds benchmark model"" ""TPC-DS Benchmark Model""
+           WHERE
+                 (""TPC-DS Benchmark Model"".""d_customer_zip_code"" IN (
+                   '80348',
+                   '81792',
+                   '83405',
+                   '85392',
+                   '85460',
+                   '85669',
+                   '86197',
+                   '86475',
+                   '88274')
+               OR
+                 ""TPC-DS Benchmark Model"".""d_customer_state"" IN ('CA', 'GA', 'WA')
+               OR  
+                   ""TPC-DS Benchmark Model"".""d_catalog_sales_price_tier"" = 'More than 500')
+               AND
+                 ""TPC-DS Benchmark Model"".""Sold Calendar Year"" = 2001
+               AND
+                 ""TPC-DS Benchmark Model"".""Sold d_quarter_of_year"" = 1
+           GROUP BY
+             1
+           HAVING ""m_CS_SALES_PRICE_sum"" IS NOT NULL
+           ORDER BY 1
+           LIMIT 100"
+TPCDS26, " -- TPC-DS_query 26
+            SELECT
+              ""TPC-DS Benchmark Model"".""d_product_item_id"" AS ""d_product_item_id"",
+              AVG( ""TPC-DS Benchmark Model"".""m_catalog_sales_quantity_sold_avg"" ) AS
+                  ""avg_m_catalog_sales_quantity_sold_avg_ok"",
+                  AVG( ""TPC-DS Benchmark Model"".""m_catalog_sales_list_price_avg"" ) AS
+                  ""avg_m_catalog_sales_list_price_avg_ok"",
+                  AVG( ""TPC-DS Benchmark Model"".""m_catalog_sales_coupon_amount_avg"" ) AS
+                  ""sum_m_catalog_sales_coupon_amount_avg_ok"",
+                  AVG( ""TPC-DS Benchmark Model"".""m_catalog_sales_sales_price_avg"" ) AS
+                  ""avg_m_catalog_sales_sales_price_avg_ok""
+                  FROM   ""TPC-DS Benchmark Model - Snowflake - 1GB"".""tpc-ds benchmark model"" ""TPC-DS Benchmark Model""
+                  WHERE    ""TPC-DS Benchmark Model"".""d_product_item_id"" IS NOT NULL
+                  AND ""TPC-DS Benchmark Model"".""Sold Calendar Year"" = 2000
+                  AND ""TPC-DS Benchmark Model"".""d_cd_education_status"" = 'College'
+                  AND ""TPC-DS Benchmark Model"".""d_cd_gender"" = 'M'
+                  AND ""TPC-DS Benchmark Model"".""d_cd_marital_status"" = 'M'
+                  AND ""TPC-DS Benchmark Model"".""d_channel_email"" = 'N'
+                  AND ""TPC-DS Benchmark Model"".""d_channel_event"" = 'N'
+                  GROUP BY    1
+                  ORDER BY    1 
+                  LIMIT 100"
