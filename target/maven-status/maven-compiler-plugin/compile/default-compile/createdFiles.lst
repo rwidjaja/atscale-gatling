@@ -6,8 +6,14 @@ executors/ClosedStepConcurrentSimulationExecutor$CubeConfig.class
 executors/ClosedStepSequentialSimulationExecutor$CubeConfig.class
 com/atscale/java/executors/ConcurrentSimulationExecutor.class
 executors/ClosedStepConcurrentSimulationExecutor.class
+com/atscale/java/jdbc/scenarios/AtScaleDynamicQueryBuilderScenario.class
+com/atscale/java/utils/GatlingErrorHandler.class
+com/atscale/java/xmla/simulations/AtScaleXmlaSimulation.class
+com/atscale/java/xmla/scenarios/AtScaleXmlaScenario.class
 executors/ArchiveJdbcToSnowflakeExecutor.class
 executors/OpenStepConcurrentSimulationExecutor$CubeConfig.class
+com/atscale/java/xmla/cases/AtScaleDynamicXmlaActions.class
+com/atscale/java/xmla/XmlaProtocol$2.class
 com/atscale/java/utils/QueryHistoryFileUtil$1.class
 com/atscale/java/utils/PropertiesManager.class
 com/atscale/java/utils/QueryHistoryFileUtil.class

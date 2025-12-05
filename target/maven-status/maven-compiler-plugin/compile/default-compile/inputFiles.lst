@@ -2,8 +2,13 @@
 /Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/executors/SequentialSimulationExecutor.java
 /Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/executors/SimulationExecutor.java
 /Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/jdbc/JdbcProtocol.java
+/Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/jdbc/scenarios/AtScaleDynamicQueryBuilderScenario.java
+/Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/utils/GatlingErrorHandler.java
 /Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/xmla/XmlaProtocol.java
+/Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/xmla/cases/AtScaleDynamicXmlaActions.java
+/Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/xmla/scenarios/AtScaleXmlaScenario.java
 /Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/xmla/simulations/AtScaleXmlaClosedInjectionStepSimulation.java
+/Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/atscale/java/xmla/simulations/AtScaleXmlaSimulation.java
 /Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/java/utils/PropertiesManager.java
 /Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/com/java/utils/QueryHistoryFileUtil.java
 /Volumes/4TB/Development/LocalGit/GitRepo/atscale-gatling/src/main/executors/AdditionalPropertiesLoader.java

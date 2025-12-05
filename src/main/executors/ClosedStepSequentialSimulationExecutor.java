@@ -1,5 +1,6 @@
 package executors;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
@@ -15,21 +16,20 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.atscale.java.executors.ConcurrentSimulationExecutor;
 import com.atscale.java.executors.MavenTaskDto;
-import com.atscale.java.executors.SimulationExecutor;
-import com.atscale.java.injectionsteps.ClosedStep;
+import com.atscale.java.injectionsteps.ClosedStep;  // Change this import
 import com.atscale.java.injectionsteps.ConstantConcurrentUsersClosedInjectionStep;
 
-public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
+public class ClosedStepSequentialSimulationExecutor extends ConcurrentSimulationExecutor<ClosedStep> {  // Extend ConcurrentSimulationExecutor instead
     
     private static final Logger logger = Logger.getLogger(ClosedStepSequentialSimulationExecutor.class.getName());
     private static final String WORKING_DIR = "working_dir";
     private static final String QUERIES_DIR = "queries";
-    private static final String INGEST_DIR = "ingest"; // Added for CSV support
+    private static final String INGEST_DIR = "ingest";
     private static final String CONFIG_DIR = "config";
     
     static {
-        // Configure simple logging
         System.setProperty("java.util.logging.SimpleFormatter.format", 
                           "[%1$tF %1$tT] [%4$-7s] %5$s %n");
     }
@@ -38,148 +38,22 @@ public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
         logger.info("ClosedStepSequentialSimulationExecutor started.");
         
         ClosedStepSequentialSimulationExecutor executor = new ClosedStepSequentialSimulationExecutor();
-        
-        // Get the tasks
-        List<MavenTaskDto<ClosedStep>> tasks = executor.getTasks();
-        logger.info("Created " + tasks.size() + " tasks.");
-        
-        // Print task details for debugging
-        for (MavenTaskDto<ClosedStep> task : tasks) {
-            logger.info("Task: " + task.getTaskName() + " - Simulation: " + task.getSimulationClass());
-        }
-        
-        // EXECUTE THE SIMULATIONS
-        logger.info("Starting simulation execution...");
-        executor.executeTasks(tasks);
+        executor.execute();  // This will use ConcurrentSimulationExecutor's execute method
         
         logger.info("ClosedStepSequentialSimulationExecutor completed.");
     }
     
-    // Execute the tasks sequentially
-    private void executeTasks(List<MavenTaskDto<ClosedStep>> tasks) {
-        for (MavenTaskDto<ClosedStep> task : tasks) {
-            try {
-                logger.info("=== EXECUTING SIMULATION ===");
-                logger.info("Task: " + task.getTaskName());
-                logger.info("Simulation: " + task.getSimulationClass());
-                logger.info("Model: " + task.getModel());
-                
-                // Decode the additional properties to see what we're sending
-                String additionalPropsStr = task.getAdditionalProperties();
-                Map<String, String> additionalProps = task.decodeAdditionalProperties(additionalPropsStr);
-                
-                if (additionalProps != null) {
-                    logger.info("Protocol: " + additionalProps.get("protocol"));
-                    logger.info("Query File: " + additionalProps.get("queryFile"));
-                    logger.info("Query File Type: " + additionalProps.get("queryFileType"));
-                    logger.info("Target: " + additionalProps.get("baseUrl"));
-                    logger.info("Catalog: " + additionalProps.get("catalog"));
-                }
-                
-                // Execute the simulation
-                executeSimulation(task);
-                
-                logger.info("=== COMPLETED SIMULATION ===");
-                
-            } catch (Exception e) {
-                logger.log(Level.SEVERE, "Failed to execute task: " + task.getTaskName(), e);
-            }
-        }
-    }
-    
-    // Execute a single simulation
-    private void executeSimulation(MavenTaskDto<ClosedStep> task) {
-        try {
-            // Build the Maven command with all required properties
-            List<String> command = new ArrayList<>();
-            command.add("mvn");
-            command.add(task.getMavenCommand());
-            command.add("-D" + MavenTaskDto.GATLING_SIMULATION_CLASS + "=" + task.getSimulationClass());
-            
-            // Add model and runId as system properties
-            command.add("-D" + MavenTaskDto.ATSCALE_MODEL + "=" + task.getModel());
-            command.add("-D" + MavenTaskDto.GATLING_RUN_ID + "=" + task.getRunId());
-            command.add("-D" + MavenTaskDto.GATLING_RUN_DESCRIPTION + "=" + task.getRunDescription());
-            
-            // Add injection steps
-            command.add("-D" + MavenTaskDto.GATLING_INJECTION_STEPS + "=" + task.getInjectionSteps());
-            
-            // Add logging properties
-            command.add("-D" + MavenTaskDto.GATLING_RUN_LOGFILENAME + "=" + task.getRunLogFileName());
-            command.add("-D" + MavenTaskDto.GATLING_RUN_LOGAPPEND + "=" + task.isRunLogAppend());
-            
-            // Add additional properties
-            command.add("-D" + MavenTaskDto.ADDITIONAL_PROPERTIES + "=" + task.getAdditionalProperties());
-            
-            // Add SSL properties to ensure the certificate is trusted - FIX for XMLA NullPointerException
-            command.add("-Djavax.net.ssl.trustStore=./cacerts");
-            command.add("-Djavax.net.ssl.trustStorePassword=changeit");
-            command.add("-Djavax.net.ssl.keyStore=./cacerts");
-            command.add("-Djavax.net.ssl.keyStorePassword=changeit");
-            command.add("-Dsun.security.ssl.allowUnsafeRenegotiation=true");
-            
-            // Add Java system properties for SSL debugging (optional)
-            command.add("-Djavax.net.debug=ssl,handshake");
-            
-            logger.info("Executing command: " + String.join(" ", command));
-            logger.info("Using truststore: ./cacerts");
-            
-            // Actually execute the command
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.directory(new File(".")); // Set working directory to current project
-            pb.redirectErrorStream(true); // Combine stdout and stderr
-            
-            // Add JAVA_HOME to environment to ensure same JVM is used
-            Map<String, String> env = pb.environment();
-            env.put("JAVA_HOME", System.getProperty("java.home"));
-            
-            Process process = pb.start();
-            
-            // Read and log the output
-            try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    logger.info("GATLING: " + line);
-                    
-                    // Look for query execution indicators in the output
-                    if (line.contains("REQUEST") || line.contains("query") || 
-                        line.contains("SQL") || line.contains("XMLA") ||
-                        line.contains("executing") || line.contains("submitting")) {
-                        logger.info("QUERY ACTIVITY DETECTED: " + line);
-                    }
-                    
-                    // Look for SSL/TLS related messages
-                    if (line.contains("SSL") || line.contains("TLS") || line.contains("certificate")) {
-                        logger.info("SSL/TLS INFO: " + line);
-                    }
-                }
-            }
-            
-            int exitCode = process.waitFor();
-            if (exitCode == 0) {
-                logger.info("Simulation completed successfully: " + task.getTaskName());
-            } else {
-                logger.warning("Simulation exited with code " + exitCode + ": " + task.getTaskName());
-            }
-            
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error executing simulation: " + task.getTaskName(), e);
-        }
-    }
-    
-    public List<MavenTaskDto<ClosedStep>> getTasks() {
-        List<MavenTaskDto<ClosedStep>> tasks = new ArrayList<>();
+    @Override
+    protected List<MavenTaskDto<ClosedStep>> getSimulationTasks() {
+       List<MavenTaskDto<ClosedStep>> tasks = new ArrayList<>();
         
         try {
-            // Load connection details from JSON file
             Map<String, String> connectionDetails = loadConnectionDetails();
             if (connectionDetails.isEmpty()) {
                 logger.severe("Failed to load connection details from config.json");
                 return tasks;
             }
             
-            // Load cube configurations from systems.properties
             Properties systemsProps = loadSystemsProperties();
             Map<String, CubeConfig> cubeConfigs = getCubeConfigurations(systemsProps);
             
@@ -198,7 +72,6 @@ public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
                            ", Cube: " + config.cubeName + 
                            ", Catalog: " + config.catalogName);
                 
-                // Updated to pass cubeIdentifier and systemsProps
                 tasks.addAll(createTasksForCube(cubeIdentifier, config.cubeName, config.catalogName, 
                                                connectionDetails, systemsProps));
             }
@@ -212,6 +85,93 @@ public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
         return tasks;
     }
     
+   // Override the execute method to run tasks sequentially instead of concurrently
+    @Override
+    public void execute() {
+        logger.info("=== Running tasks SEQUENTIALLY ===");
+        
+        List<MavenTaskDto<ClosedStep>> tasks = getSimulationTasks();
+        
+        if (tasks.isEmpty()) {
+            logger.warning("No tasks to execute!");
+            return;
+        }
+        
+        // Execute tasks sequentially
+        for (MavenTaskDto<ClosedStep> task : tasks) {
+            try {
+                logger.info("=== Executing task sequentially: " + task.getTaskName());
+                
+                // Use the parent class's single task execution
+                // We need to check if there's a protected method we can call
+                // If not, we'll need to implement our own execution
+                executeSingleTask(task);
+                
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Failed to execute task: " + task.getTaskName(), e);
+            }
+        }
+        
+        logger.info("=== All tasks completed ===");
+    }
+
+    // Add this method if it doesn't exist in the parent class
+    private void executeSingleTask(MavenTaskDto<ClosedStep> task) {
+        try {
+            List<String> command = new ArrayList<>();
+            command.add("mvn");
+            command.add(task.getMavenCommand());
+
+            // Standard Gatling system properties
+            command.add("-D" + MavenTaskDto.GATLING_SIMULATION_CLASS + "=" + task.getSimulationClass());
+            command.add("-D" + MavenTaskDto.ATSCALE_MODEL + "=" + task.getModel());
+            command.add("-D" + MavenTaskDto.GATLING_RUN_ID + "=" + task.getRunId());
+            command.add("-D" + MavenTaskDto.GATLING_RUN_DESCRIPTION + "=" + task.getRunDescription());
+            command.add("-D" + MavenTaskDto.GATLING_INJECTION_STEPS + "=" + task.getInjectionSteps());
+            command.add("-D" + MavenTaskDto.GATLING_RUN_LOGFILENAME + "=" + task.getRunLogFileName());
+            command.add("-D" + MavenTaskDto.GATLING_RUN_LOGAPPEND + "=" + task.isRunLogAppend());
+
+            // ⭐ Correct location to insert the fix ⭐
+            String additional = task.getAdditionalProperties();
+            if (additional != null && !additional.isEmpty()) {
+                command.add("-D" + MavenTaskDto.ADDITIONAL_PROPERTIES + "=" + additional);
+            }
+
+            // SSL config
+            command.add("-Djavax.net.ssl.trustStore=./cacerts");
+            command.add("-Djavax.net.ssl.trustStorePassword=changeit");
+            command.add("-Djavax.net.ssl.keyStore=./cacerts");
+            command.add("-Djavax.net.ssl.keyStorePassword=changeit");
+            command.add("-Dsun.security.ssl.allowUnsafeRenegotiation=true");
+            logger.info("Executing command: " + String.join(" ", command));
+
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(new File("."));
+            pb.redirectErrorStream(true);
+
+            Process process = pb.start();
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    logger.info("GATLING: " + line);
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                logger.info("Task completed successfully: " + task.getTaskName());
+            } else {
+                logger.warning("Task exited with code " + exitCode + ": " + task.getTaskName());
+            }
+
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error executing task: " + task.getTaskName(), e);
+            throw new RuntimeException("Failed to execute task: " + task.getTaskName(), e);
+        }
+    }
+
     private Map<String, CubeConfig> getCubeConfigurations(Properties systemsProps) {
         Map<String, CubeConfig> cubeConfigs = new HashMap<>();
         
@@ -559,10 +519,6 @@ public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
             logger.log(Level.SEVERE, "Error creating CSV task for cube: " + cubeName + ", protocol: " + protocol, e);
             return null;
         }
-    }
-    
-    public String getExecutorName() {
-        return "ClosedStepSequentialSimulationExecutor";
     }
     
     // Helper class to store cube configuration
