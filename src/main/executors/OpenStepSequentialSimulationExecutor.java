@@ -164,7 +164,8 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                         cubeTasks.add(jdbcTask);
                     }
                 } else {
-                    logger.warning("JDBC queries file not found for cube: " + cubeName + 
+                    // match ClosedStep behavior (not a severe missing-case; use fine)
+                    logger.fine("JDBC queries file not found for cube: " + cubeName + 
                                  " (looking for: " + jdbcFileName + ")");
                 }
             }
@@ -196,7 +197,8 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                         cubeTasks.add(xmlaTask);
                     }
                 } else {
-                    logger.warning("XMLA queries file not found for cube: " + cubeName + 
+                    // match ClosedStep behavior
+                    logger.fine("XMLA queries file not found for cube: " + cubeName + 
                                  " (looking for: " + xmlaFileName + ")");
                 }
             }
@@ -327,8 +329,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
             }
             task.setSimulationClass(simulationClass);
             
-            // FIX: Use the EXACT cube name (with spaces) as the model for the simulation
-            // This is what the simulation will use to construct the filename
+            // Use the EXACT cube name (with spaces) as the model for the simulation
             task.setModel(cubeName);
             
             task.setRunDescription(String.format("%s %s Open Cube Tests (JSON)", cubeName, protocol.toUpperCase()));
@@ -409,7 +410,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
             }
             task.setSimulationClass(simulationClass);
             
-            // FIX: Use the EXACT cube name (with spaces) as the model for the simulation
+            // Use the EXACT cube name (with spaces) as the model for the simulation
             task.setModel(cubeName);
             
             task.setRunDescription(String.format("%s %s Open Cube Tests (CSV)", cubeName, protocol.toUpperCase()));

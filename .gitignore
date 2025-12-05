@@ -7,7 +7,8 @@ __pycache__/
 venv/
 .env/
 
-target/
+target/*
+target/analysis/*
 # OS-specific junk
 .DS_Store
 Thumbs.db
