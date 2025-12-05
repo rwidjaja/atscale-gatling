@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Properties>
+        <Property name="simulation_logFileName">${sys:gatling_run_logFileName:-init.log}</Property>
+        <Property name="simulation_logAppend">${sys:gatling_run_logAppend:-false}</Property>
+    </Properties>
+    <Appenders>
+        <Console name="STDOUT" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m %n"/>
+        </Console>
+        <RollingFile name="APP_LOG" fileName="working_dir/app_logs/application.log"
+                     filePattern="working_dir/app_logs/application-%d{yyyy-MM-dd}.%i.log">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m %n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="10MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30" fileIndex="min">
+                <Delete basePath="working_dir/app_logs" maxDepth="1">
+                    <IfAccumulatedFileSize exceeds="1GB"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        <Async name="ASYNC_APP_LOG" bufferSize="250">
+            <AppenderRef ref="APP_LOG"/>
+            <Blocking>true</Blocking>
+        </Async>
+        <File name="SQL" fileName="working_dir/run_logs/${simulation_logFileName}" append="${simulation_logAppend}">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m %n"/>
+        </File>
+        <Async name="ASYNC_SQL" bufferSize="250">
+            <AppenderRef ref="SQL"/>
+            <Blocking>true</Blocking>
+        </Async>
+        <File name="XMLA" fileName="working_dir/run_logs/${simulation_logFileName}" append="${simulation_logAppend}">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m %n"/>
+        </File>
+        <Async name="ASYNC_XMLA" bufferSize="250">
+            <AppenderRef ref="XMLA"/>
+            <Blocking>true</Blocking>
+        </Async>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <!-- commented out to avoid console logging
+            <AppenderRef ref="STDOUT"/>
+            -->
+            <AppenderRef ref="ASYNC_APP_LOG"/>
+        </Root>
+        <Logger name="io.gatling" level="error">
+            <AppenderRef ref="STDOUT"/>
+            <AppenderRef ref="ASYNC_APP_LOG"/>
+        </Logger>
+        <Logger name="SqlLogger" level="info" additivity="false">
+            <AppenderRef ref="ASYNC_SQL"/>
+        </Logger>
+        <Logger name="XmlaLogger" level="info" additivity="false">
+            <AppenderRef ref="ASYNC_XMLA"/>
+        </Logger>
+    </Loggers>
+</Configuration>
