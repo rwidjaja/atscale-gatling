@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,7 +23,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
     private static final Logger logger = Logger.getLogger(OpenStepSequentialSimulationExecutor.class.getName());
     private static final String WORKING_DIR = "working_dir";
     private static final String QUERIES_DIR = "queries";
-    private static final String INGEST_DIR = "ingest"; // Added INGEST_DIR
+    private static final String INGEST_DIR = "ingest";
     private static final String CONFIG_DIR = "config";
     
     static {
@@ -48,14 +46,6 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         List<MavenTaskDto<OpenStep>> tasks = new ArrayList<>();
         
         try {
-            // Load connection details from JSON file
-            Map<String, String> connectionDetails = loadConnectionDetails();
-            if (connectionDetails.isEmpty()) {
-                logger.severe("Failed to load connection details from config.json");
-                return tasks;
-            }
-            
-            // Load cube configurations from systems.properties
             Properties systemsProps = loadSystemsProperties();
             Map<String, CubeConfig> cubeConfigs = getCubeConfigurations(systemsProps);
             
@@ -74,9 +64,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                            ", Cube: " + config.cubeName + 
                            ", Catalog: " + config.catalogName);
                 
-                // Updated to pass cubeIdentifier and systemsProps
-                tasks.addAll(createTasksForCube(cubeIdentifier, config.cubeName, config.catalogName, 
-                                               connectionDetails, systemsProps));
+                tasks.addAll(createTasksForCube(cubeIdentifier, config.cubeName, config.catalogName, systemsProps));
             }
             
             logger.info("Created " + tasks.size() + " open step tasks for " + cubeConfigs.size() + " cubes");
@@ -85,7 +73,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
             logger.log(Level.SEVERE, "Error loading tasks", e);
         }
         
-        return tasks; // Removed withAdditionalProperties call
+        return tasks;
     }
     
     private Map<String, CubeConfig> getCubeConfigurations(Properties systemsProps) {
@@ -93,11 +81,9 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         
         for (String propertyName : systemsProps.stringPropertyNames()) {
             if (propertyName.startsWith("atscale.") && propertyName.contains(".xmla.cube")) {
-                // Extract cube identifier (the part between "atscale." and ".xmla.cube")
                 String cubeIdentifier = propertyName.substring("atscale.".length(), propertyName.indexOf(".xmla.cube"));
                 String cubeName = systemsProps.getProperty(propertyName);
                 
-                // Get the catalog name for this cube
                 String catalogProperty = "atscale." + cubeIdentifier + ".xmla.catalog";
                 String catalogName = systemsProps.getProperty(catalogProperty);
                 
@@ -106,7 +92,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                     catalogName = cubeName;
                 }
                 
-                CubeConfig config = new CubeConfig(cubeName, catalogName);
+                CubeConfig config = new CubeConfig(cubeName, catalogName, cubeIdentifier);
                 cubeConfigs.put(cubeIdentifier, config);
                 logger.info("Found cube configuration - Identifier: " + cubeIdentifier + 
                            ", Cube: " + cubeName + 
@@ -116,49 +102,20 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         
         if (cubeConfigs.isEmpty()) {
             logger.warning("No cube configurations found. Falling back to models.");
-            // Fallback to models if no cube configurations found
             String models = systemsProps.getProperty("atscale.models");
             if (models != null && !models.trim().isEmpty()) {
                 String[] modelList = models.split(",");
                 for (String model : modelList) {
                     String trimmedModel = model.trim();
                     if (!trimmedModel.isEmpty()) {
-                        cubeConfigs.put(trimmedModel, new CubeConfig(trimmedModel, trimmedModel));
+                        String sanitizedIdentifier = trimmedModel.replace(" ", "_");
+                        cubeConfigs.put(sanitizedIdentifier, new CubeConfig(trimmedModel, trimmedModel, sanitizedIdentifier));
                     }
                 }
             }
         }
         
         return cubeConfigs;
-    }
-    
-    private Map<String, String> loadConnectionDetails() {
-        Map<String, String> connectionDetails = new HashMap<>();
-        try {
-            File connectionFile = new File("config.json");
-            if (!connectionFile.exists()) {
-                logger.severe("config.json file not found at: " + connectionFile.getAbsolutePath());
-                return connectionDetails;
-            }
-            
-            // Read JSON file without Jackson
-            String jsonContent = new String(Files.readAllBytes(Paths.get("config.json")), StandardCharsets.UTF_8);
-            // Simple JSON parsing for basic structure
-            jsonContent = jsonContent.replace("{", "").replace("}", "").replace("\"", "").replaceAll("\\s+", "");
-            String[] pairs = jsonContent.split(",");
-            for (String pair : pairs) {
-                String[] keyValue = pair.split(":");
-                if (keyValue.length == 2) {
-                    connectionDetails.put(keyValue[0].trim(), keyValue[1].trim());
-                }
-            }
-            
-            logger.info("Loaded connection details for host: " + connectionDetails.get("host"));
-            
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error loading config.json", e);
-        }
-        return connectionDetails;
     }
     
     private Properties loadSystemsProperties() {
@@ -173,11 +130,13 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
     }
     
     private List<MavenTaskDto<OpenStep>> createTasksForCube(String cubeIdentifier, String cubeName, String catalogName, 
-                                                           Map<String, String> connectionDetails, Properties systemsProps) {
+                                                           Properties systemsProps) {
         List<MavenTaskDto<OpenStep>> cubeTasks = new ArrayList<>();
         
         try {
-            // Check for JDBC CSV file - NEW LOGIC
+            Map<String, String> jdbcConnectionDetails = getJdbcConnectionDetails(cubeIdentifier, systemsProps);
+            Map<String, String> xmlaConnectionDetails = getXmlaConnectionDetails(cubeIdentifier, systemsProps);
+            
             String jdbcCsvFile = systemsProps.getProperty("atscale." + cubeIdentifier + ".jdbc.setIngestionFileName");
             boolean jdbcHasHeader = Boolean.parseBoolean(
                 systemsProps.getProperty("atscale." + cubeIdentifier + ".jdbc.setIngestionFileHasHeader", "true")
@@ -187,7 +146,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                 File jdbcFile = new File(WORKING_DIR, INGEST_DIR + File.separator + jdbcCsvFile);
                 if (jdbcFile.exists()) {
                     MavenTaskDto<OpenStep> jdbcTask = createTaskForCsvFile(cubeName, catalogName, jdbcFile, 
-                                                                          "jdbc", connectionDetails, jdbcHasHeader);
+                                                                          "jdbc", jdbcConnectionDetails, jdbcHasHeader, cubeIdentifier);
                     if (jdbcTask != null) {
                         cubeTasks.add(jdbcTask);
                     }
@@ -195,22 +154,21 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                     logger.warning("JDBC CSV file not found: " + jdbcFile.getAbsolutePath());
                 }
             } else {
-                // Fall back to JSON if CSV not configured
                 String jdbcFileName = cubeName + "_jdbc_queries.json";
-                File jdbcFile = getQueryFileWithTimestamp(jdbcFileName);
+                File jdbcFile = getQueryFile(jdbcFileName);
                 
                 if (jdbcFile != null && jdbcFile.exists()) {
                     MavenTaskDto<OpenStep> jdbcTask = createTaskForJsonFile(cubeName, catalogName, jdbcFile, 
-                                                                           "jdbc", connectionDetails);
+                                                                           "jdbc", jdbcConnectionDetails, cubeIdentifier);
                     if (jdbcTask != null) {
                         cubeTasks.add(jdbcTask);
                     }
                 } else {
-                    logger.warning("JDBC queries file not found for cube: " + cubeName + " (looking for: " + jdbcFileName + ")");
+                    logger.warning("JDBC queries file not found for cube: " + cubeName + 
+                                 " (looking for: " + jdbcFileName + ")");
                 }
             }
             
-            // Check for XMLA CSV file - NEW LOGIC
             String xmlaCsvFile = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.setIngestionFileName");
             boolean xmlaHasHeader = Boolean.parseBoolean(
                 systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.setIngestionFileHasHeader", "true")
@@ -220,7 +178,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                 File xmlaFile = new File(WORKING_DIR, INGEST_DIR + File.separator + xmlaCsvFile);
                 if (xmlaFile.exists()) {
                     MavenTaskDto<OpenStep> xmlaTask = createTaskForCsvFile(cubeName, catalogName, xmlaFile, 
-                                                                          "xmla", connectionDetails, xmlaHasHeader);
+                                                                          "xmla", xmlaConnectionDetails, xmlaHasHeader, cubeIdentifier);
                     if (xmlaTask != null) {
                         cubeTasks.add(xmlaTask);
                     }
@@ -228,18 +186,18 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                     logger.warning("XMLA CSV file not found: " + xmlaFile.getAbsolutePath());
                 }
             } else {
-                // Fall back to JSON if CSV not configured
                 String xmlaFileName = cubeName + "_xmla_queries.json";
-                File xmlaFile = getQueryFileWithTimestamp(xmlaFileName);
+                File xmlaFile = getQueryFile(xmlaFileName);
                 
                 if (xmlaFile != null && xmlaFile.exists()) {
                     MavenTaskDto<OpenStep> xmlaTask = createTaskForJsonFile(cubeName, catalogName, xmlaFile, 
-                                                                           "xmla", connectionDetails);
+                                                                           "xmla", xmlaConnectionDetails, cubeIdentifier);
                     if (xmlaTask != null) {
                         cubeTasks.add(xmlaTask);
                     }
                 } else {
-                    logger.warning("XMLA queries file not found for cube: " + cubeName + " (looking for: " + xmlaFileName + ")");
+                    logger.warning("XMLA queries file not found for cube: " + cubeName + 
+                                 " (looking for: " + xmlaFileName + ")");
                 }
             }
             
@@ -250,7 +208,69 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         return cubeTasks;
     }
     
-    private File getQueryFileWithTimestamp(String baseFileName) {
+    private Map<String, String> getJdbcConnectionDetails(String cubeIdentifier, Properties systemsProps) {
+        Map<String, String> connectionDetails = new HashMap<>();
+        
+        String url = systemsProps.getProperty("atscale." + cubeIdentifier + ".jdbc.url");
+        String username = systemsProps.getProperty("atscale." + cubeIdentifier + ".jdbc.username");
+        String password = systemsProps.getProperty("atscale." + cubeIdentifier + ".jdbc.password");
+        
+        if (url != null) {
+            connectionDetails.put("url", url);
+            connectionDetails.put("username", username != null ? username : "");
+            connectionDetails.put("password", password != null ? password : "");
+            logger.info("Found JDBC connection details for cube identifier: " + cubeIdentifier);
+        } else {
+            logger.warning("No JDBC URL found for cube identifier: " + cubeIdentifier);
+        }
+        
+        return connectionDetails;
+    }
+    
+    private Map<String, String> getXmlaConnectionDetails(String cubeIdentifier, Properties systemsProps) {
+        Map<String, String> connectionDetails = new HashMap<>();
+        
+        String url = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.url");
+        
+        if (url != null) {
+            connectionDetails.put("url", url);
+            
+            if (url.contains("/default/") && url.length() > url.indexOf("/default/") + 9) {
+                String afterDefault = url.substring(url.indexOf("/default/") + 9);
+                if (afterDefault.matches("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}.*")) {
+                    logger.info("XMLA URL contains token for cube identifier: " + cubeIdentifier + " - using token-based auth");
+                    connectionDetails.put("authType", "token");
+                } else {
+                    connectionDetails.put("authType", "basic");
+                    String authUrl = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.auth.url");
+                    String username = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.auth.username");
+                    String password = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.auth.password");
+                    
+                    if (authUrl != null) connectionDetails.put("authUrl", authUrl);
+                    if (username != null) connectionDetails.put("username", username);
+                    if (password != null) connectionDetails.put("password", password);
+                }
+            } else {
+                connectionDetails.put("authType", "basic");
+                String authUrl = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.auth.url");
+                String username = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.auth.username");
+                String password = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.auth.password");
+                
+                if (authUrl != null) connectionDetails.put("authUrl", authUrl);
+                if (username != null) connectionDetails.put("username", username);
+                if (password != null) connectionDetails.put("password", password);
+            }
+            
+            logger.info("Found XMLA connection details for cube identifier: " + cubeIdentifier + 
+                       ", auth type: " + connectionDetails.get("authType"));
+        } else {
+            logger.warning("No XMLA URL found for cube identifier: " + cubeIdentifier);
+        }
+        
+        return connectionDetails;
+    }
+    
+    private File getQueryFile(String fileName) {
         try {
             File queriesDir = new File(WORKING_DIR, QUERIES_DIR);
             if (!queriesDir.exists()) {
@@ -258,39 +278,47 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                 return null;
             }
             
-            // Look for files that match the base pattern (with or without timestamp)
-            String baseNameWithoutExt = baseFileName.replace(".json", "");
+            File exactFile = new File(queriesDir, fileName);
+            if (exactFile.exists()) {
+                logger.fine("Found exact query file: " + exactFile.getName());
+                return exactFile;
+            }
+            
+            String baseNameWithoutExt = fileName.replace(".json", "");
             File[] matchingFiles = queriesDir.listFiles((dir, name) -> 
-                name.startsWith(baseNameWithoutExt) && name.endsWith(".json")
+                name.startsWith(baseNameWithoutExt + "_") && name.endsWith(".json")
             );
             
             if (matchingFiles == null || matchingFiles.length == 0) {
                 return null;
             }
             
-            // Return the most recently modified file
             Arrays.sort(matchingFiles, (f1, f2) -> 
                 Long.compare(f2.lastModified(), f1.lastModified())
             );
             
-            logger.fine("Found query file: " + matchingFiles[0].getName() + " for base: " + baseFileName);
+            logger.fine("Found timestamped query file: " + matchingFiles[0].getName() + " for base: " + fileName);
             return matchingFiles[0];
             
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error finding query file: " + baseFileName, e);
+            logger.log(Level.SEVERE, "Error finding query file: " + fileName, e);
             return null;
         }
     }
     
-    // NEW METHOD: Create task for JSON file
     private MavenTaskDto<OpenStep> createTaskForJsonFile(String cubeName, String catalogName, File queryFile, 
-                                                        String protocol, Map<String, String> connectionDetails) {
+                                                        String protocol, Map<String, String> connectionDetails,
+                                                        String cubeIdentifier) {
         try {
-            // Create task with descriptive name
+            String queryFilePath = QUERIES_DIR + "/" + queryFile.getName();
+            
+            // Sanitize only for log file names, NOT for cube name passed to simulation
+            String sanitizedCubeNameForLogs = cubeName.replace(" ", "_");
+            String sanitizedCatalogNameForLogs = catalogName.replace(" ", "_");
+            
             String taskName = String.format("%s %s Open Simulation (JSON)", cubeName, protocol.toUpperCase());
             MavenTaskDto<OpenStep> task = new MavenTaskDto<>(taskName);
 
-            // Set the simulation class based on protocol
             String simulationClass;
             if ("xmla".equals(protocol)) {
                 simulationClass = "com.atscale.java.xmla.simulations.AtScaleXmlaOpenInjectionStepSimulation";
@@ -299,50 +327,61 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
             }
             task.setSimulationClass(simulationClass);
             
-            // Set the cube name as the model (for both JDBC and XMLA) - this is what PropertiesManager will use
+            // FIX: Use the EXACT cube name (with spaces) as the model for the simulation
+            // This is what the simulation will use to construct the filename
             task.setModel(cubeName);
             
-            // Set run description
             task.setRunDescription(String.format("%s %s Open Cube Tests (JSON)", cubeName, protocol.toUpperCase()));
             
-            // Create injection steps using AtOnceUsersOpenInjectionStep (open workload)
             List<OpenStep> openSteps = new ArrayList<>();
-            openSteps.add(new AtOnceUsersOpenInjectionStep(1)); // 1 user at once
+            openSteps.add(new AtOnceUsersOpenInjectionStep(1));
             
-            // Set injection steps
             task.setInjectionSteps(openSteps);
             
-            // Set other required properties from the original example
             task.setMavenCommand("gatling:test");
-            task.setRunId("OpenRun-" + cubeName.replace(" ", "") + "-" + protocol + "-JSON");
-            task.setRunLogFileName(cubeName.replace(" ", "_") + "_" + protocol + "_open.log");
+            task.setRunId("OpenRun-" + sanitizedCatalogNameForLogs + "-" + sanitizedCubeNameForLogs + "-" + protocol + "-JSON");
+            task.setRunLogFileName(sanitizedCatalogNameForLogs + "_" + sanitizedCubeNameForLogs + "_" + protocol + "_open.log");
             task.setLoggingAsAppend(false);
             
-            // Build additional properties as a Map (which will be JSON encoded and Base64 encoded by MavenTaskDto)
             Map<String, String> additionalProperties = new HashMap<>();
-            additionalProperties.put("queryFile", QUERIES_DIR + "/" + queryFile.getName());
+            // Pass the full query file path
+            additionalProperties.put("queryFile", queryFilePath);
             additionalProperties.put("queryFileType", "json");
-            additionalProperties.put("modelName", cubeName);
             additionalProperties.put("catalogName", catalogName);
-            additionalProperties.put("protocol", protocol);
-            additionalProperties.put("baseUrl", "http://" + connectionDetails.get("host") + ":10500");
-            additionalProperties.put("username", connectionDetails.get("username"));
-            additionalProperties.put("password", connectionDetails.get("password"));
-            additionalProperties.put("catalog", catalogName);
+            // Pass the exact cube name (with spaces) for the simulation to use
+            additionalProperties.put("cubeName", cubeName);
+            // Also pass the identifier for property lookup if needed
+            additionalProperties.put("cubeIdentifier", cubeIdentifier);
             
-            // Add SSL properties to ensure the certificate is trusted
-            String javaHome = System.getProperty("java.home");
+            // Pass connection details directly
+            additionalProperties.put("url", connectionDetails.getOrDefault("url", ""));
+            additionalProperties.put("username", connectionDetails.getOrDefault("username", ""));
+            additionalProperties.put("password", connectionDetails.getOrDefault("password", ""));
+            additionalProperties.put("protocol", protocol);
+            
+            if ("xmla".equals(protocol)) {
+                additionalProperties.put("xmlaUrl", connectionDetails.getOrDefault("url", ""));
+                additionalProperties.put("authType", connectionDetails.getOrDefault("authType", "basic"));
+                
+                if (!"token".equals(connectionDetails.get("authType"))) {
+                    additionalProperties.put("authUrl", connectionDetails.getOrDefault("authUrl", ""));
+                }
+                
+                additionalProperties.put("catalog", catalogName);
+            }
+            
             String trustStore = "./cacerts";
             additionalProperties.put("javax.net.ssl.trustStore", trustStore);
             additionalProperties.put("javax.net.ssl.trustStorePassword", "changeit");
             
-            // Use setAdditionalProperties with the Map (MavenTaskDto will handle encoding)
             task.setAdditionalProperties(additionalProperties);
             
-            logger.info("Created open step task for cube: " + cubeName + 
-                       " (catalog: " + catalogName + ")" +
-                       ", protocol: " + protocol + 
-                       ", file: " + queryFile.getName());
+            logger.info("Created open step task - Cube: " + cubeName + 
+                       ", Catalog: " + catalogName + 
+                       ", Identifier: " + cubeIdentifier +
+                       ", Protocol: " + protocol + 
+                       ", Query file: " + queryFile.getName() +
+                       ", Model set to: " + cubeName); // Log what we're setting as model
             
             return task;
             
@@ -352,16 +391,16 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         }
     }
     
-    // NEW METHOD: Create task for CSV file
     private MavenTaskDto<OpenStep> createTaskForCsvFile(String cubeName, String catalogName, File csvFile, 
                                                        String protocol, Map<String, String> connectionDetails, 
-                                                       boolean hasHeader) {
+                                                       boolean hasHeader, String cubeIdentifier) {
         try {
-            // Create task with descriptive name
+            String sanitizedCubeNameForLogs = cubeName.replace(" ", "_");
+            String sanitizedCatalogNameForLogs = catalogName.replace(" ", "_");
+            
             String taskName = String.format("%s %s Open Simulation (CSV)", cubeName, protocol.toUpperCase());
             MavenTaskDto<OpenStep> task = new MavenTaskDto<>(taskName);
 
-            // Set the simulation class based on protocol
             String simulationClass;
             if ("xmla".equals(protocol)) {
                 simulationClass = "com.atscale.java.xmla.simulations.AtScaleXmlaOpenInjectionStepSimulation";
@@ -370,52 +409,58 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
             }
             task.setSimulationClass(simulationClass);
             
-            // Set the cube name as the model (for both JDBC and XMLA) - this is what PropertiesManager will use
+            // FIX: Use the EXACT cube name (with spaces) as the model for the simulation
             task.setModel(cubeName);
             
-            // Set run description
             task.setRunDescription(String.format("%s %s Open Cube Tests (CSV)", cubeName, protocol.toUpperCase()));
             
-            // Create injection steps using AtOnceUsersOpenInjectionStep (open workload)
             List<OpenStep> openSteps = new ArrayList<>();
-            openSteps.add(new AtOnceUsersOpenInjectionStep(1)); // 1 user at once
+            openSteps.add(new AtOnceUsersOpenInjectionStep(1));
             
-            // Set injection steps
             task.setInjectionSteps(openSteps);
             
-            // Set other required properties from the original example
             task.setMavenCommand("gatling:test");
-            task.setRunId("OpenRun-" + cubeName.replace(" ", "") + "-" + protocol + "-CSV");
-            task.setRunLogFileName(cubeName.replace(" ", "_") + "_" + protocol + "_open_csv.log");
+            task.setRunId("OpenRun-" + sanitizedCatalogNameForLogs + "-" + sanitizedCubeNameForLogs + "-" + protocol + "-CSV");
+            task.setRunLogFileName(sanitizedCatalogNameForLogs + "_" + sanitizedCubeNameForLogs + "_" + protocol + "_open_csv.log");
             task.setLoggingAsAppend(false);
             
-            // Build additional properties as a Map (which will be JSON encoded and Base64 encoded by MavenTaskDto)
             Map<String, String> additionalProperties = new HashMap<>();
             additionalProperties.put("queryFile", INGEST_DIR + "/" + csvFile.getName());
             additionalProperties.put("queryFileType", "csv");
             additionalProperties.put("csvHasHeader", String.valueOf(hasHeader));
-            additionalProperties.put("modelName", cubeName);
             additionalProperties.put("catalogName", catalogName);
-            additionalProperties.put("protocol", protocol);
-            additionalProperties.put("baseUrl", "http://" + connectionDetails.get("host") + ":10500");
-            additionalProperties.put("username", connectionDetails.get("username"));
-            additionalProperties.put("password", connectionDetails.get("password"));
-            additionalProperties.put("catalog", catalogName);
+            additionalProperties.put("cubeName", cubeName);
+            additionalProperties.put("cubeIdentifier", cubeIdentifier);
             
-            // Add SSL properties to ensure the certificate is trusted
-            String javaHome = System.getProperty("java.home");
+            additionalProperties.put("url", connectionDetails.getOrDefault("url", ""));
+            additionalProperties.put("username", connectionDetails.getOrDefault("username", ""));
+            additionalProperties.put("password", connectionDetails.getOrDefault("password", ""));
+            additionalProperties.put("protocol", protocol);
+            
+            if ("xmla".equals(protocol)) {
+                additionalProperties.put("xmlaUrl", connectionDetails.getOrDefault("url", ""));
+                additionalProperties.put("authType", connectionDetails.getOrDefault("authType", "basic"));
+                
+                if (!"token".equals(connectionDetails.get("authType"))) {
+                    additionalProperties.put("authUrl", connectionDetails.getOrDefault("authUrl", ""));
+                }
+                
+                additionalProperties.put("catalog", catalogName);
+            }
+            
             String trustStore = "./cacerts";
             additionalProperties.put("javax.net.ssl.trustStore", trustStore);
             additionalProperties.put("javax.net.ssl.trustStorePassword", "changeit");
             
-            // Use setAdditionalProperties with the Map (MavenTaskDto will handle encoding)
             task.setAdditionalProperties(additionalProperties);
             
-            logger.info("Created open step CSV task for cube: " + cubeName + 
-                       " (catalog: " + catalogName + ")" +
-                       ", protocol: " + protocol + 
-                       ", file: " + csvFile.getName() +
-                       ", hasHeader: " + hasHeader);
+            logger.info("Created open step CSV task - Cube: " + cubeName + 
+                       ", Catalog: " + catalogName + 
+                       ", Identifier: " + cubeIdentifier +
+                       ", Protocol: " + protocol + 
+                       ", CSV file: " + csvFile.getName() +
+                       ", Has header: " + hasHeader +
+                       ", Model set to: " + cubeName);
             
             return task;
             
@@ -425,14 +470,15 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         }
     }
     
-    // Helper class to store cube configuration
     private static class CubeConfig {
         final String cubeName;
         final String catalogName;
+        final String identifier;
 
-        CubeConfig(String cubeName, String catalogName) {
+        CubeConfig(String cubeName, String catalogName, String identifier) {
             this.cubeName = cubeName;
             this.catalogName = catalogName;
+            this.identifier = identifier;
         }
     }
 }

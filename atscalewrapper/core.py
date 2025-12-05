@@ -599,6 +599,28 @@ class AtScaleGatlingCore:
             f.write("atscale.jdbc.generateAggregates=false\n")
             f.write("atscale.jdbc.useLocalCache=false\n")
             
-            # ... (rest of the existing config writing code)
+            # Add AWS config if present
+            if self.cfg.get("aws.region"):
+                f.write(f"aws.region={self.cfg['aws.region']}\n")
+            if self.cfg.get("aws.secrets-key"):
+                f.write(f"aws.secrets-key={self.cfg['aws.secrets-key']}\n")
+                
+            # Add Snowflake config if present
+            if self.cfg.get("snowflake.archive.account"):
+                f.write(f"snowflake.archive.account={self.cfg['snowflake.archive.account']}\n")
+            if self.cfg.get("snowflake.archive.warehouse"):
+                f.write(f"snowflake.archive.warehouse={self.cfg['snowflake.archive.warehouse']}\n")
+            if self.cfg.get("snowflake.archive.database"):
+                f.write(f"snowflake.archive.database={self.cfg['snowflake.archive.database']}\n")
+            if self.cfg.get("snowflake.archive.schema"):
+                f.write(f"snowflake.archive.schema={self.cfg['snowflake.archive.schema']}\n")
+            if self.cfg.get("snowflake.archive.role"):
+                f.write(f"snowflake.archive.role={self.cfg['snowflake.archive.role']}\n")
+            if self.cfg.get("snowflake.archive.username"):
+                f.write(f"snowflake.archive.username={self.cfg['snowflake.archive.username']}\n")
+            if self.cfg.get("snowflake.archive.password"):
+                f.write(f"snowflake.archive.password={self.cfg['snowflake.archive.token']}\n")
+            if self.cfg.get("snowflake.archive.token"):
+                f.write(f"snowflake.archive.token={self.cfg['snowflake.archive.token']}\n")
             
         print(f"✅ CSV systems.properties generated for {len(selected_pairs)} selected pairs")
