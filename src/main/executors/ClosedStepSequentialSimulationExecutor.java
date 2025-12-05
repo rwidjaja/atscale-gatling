@@ -25,6 +25,7 @@ public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
     private static final Logger logger = Logger.getLogger(ClosedStepSequentialSimulationExecutor.class.getName());
     private static final String WORKING_DIR = "working_dir";
     private static final String QUERIES_DIR = "queries";
+    private static final String INGEST_DIR = "ingest"; // Added for CSV support
     private static final String CONFIG_DIR = "config";
     
     static {
@@ -38,7 +39,7 @@ public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
         
         ClosedStepSequentialSimulationExecutor executor = new ClosedStepSequentialSimulationExecutor();
         
-        // Get the tasks - use the generic type
+        // Get the tasks
         List<MavenTaskDto<ClosedStep>> tasks = executor.getTasks();
         logger.info("Created " + tasks.size() + " tasks.");
         
@@ -47,14 +48,14 @@ public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
             logger.info("Task: " + task.getTaskName() + " - Simulation: " + task.getSimulationClass());
         }
         
-        // EXECUTE THE SIMULATIONS - This is what you're missing!
+        // EXECUTE THE SIMULATIONS
         logger.info("Starting simulation execution...");
         executor.executeTasks(tasks);
         
         logger.info("ClosedStepSequentialSimulationExecutor completed.");
     }
     
-    // ADD THIS METHOD TO EXECUTE THE TASKS
+    // Execute the tasks sequentially
     private void executeTasks(List<MavenTaskDto<ClosedStep>> tasks) {
         for (MavenTaskDto<ClosedStep> task : tasks) {
             try {
@@ -70,11 +71,12 @@ public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
                 if (additionalProps != null) {
                     logger.info("Protocol: " + additionalProps.get("protocol"));
                     logger.info("Query File: " + additionalProps.get("queryFile"));
+                    logger.info("Query File Type: " + additionalProps.get("queryFileType"));
                     logger.info("Target: " + additionalProps.get("baseUrl"));
                     logger.info("Catalog: " + additionalProps.get("catalog"));
                 }
                 
-                // Execute the simulation using the base class method
+                // Execute the simulation
                 executeSimulation(task);
                 
                 logger.info("=== COMPLETED SIMULATION ===");
@@ -85,77 +87,86 @@ public class ClosedStepSequentialSimulationExecutor extends SimulationExecutor {
         }
     }
     
-    // ADD THIS METHOD TO HANDLE SIMULATION EXECUTION
-private void executeSimulation(MavenTaskDto<ClosedStep> task) {
-    try {
-        // Build the Maven command with all required properties
-        List<String> command = new ArrayList<>();
-        command.add("mvn");
-        command.add(task.getMavenCommand());
-        command.add("-D" + MavenTaskDto.GATLING_SIMULATION_CLASS + "=" + task.getSimulationClass());
-        
-        // Add model and runId as system properties
-        command.add("-D" + MavenTaskDto.ATSCALE_MODEL + "=" + task.getModel());
-        command.add("-D" + MavenTaskDto.GATLING_RUN_ID + "=" + task.getRunId());
-        command.add("-D" + MavenTaskDto.GATLING_RUN_DESCRIPTION + "=" + task.getRunDescription());
-        
-        // Add injection steps
-        command.add("-D" + MavenTaskDto.GATLING_INJECTION_STEPS + "=" + task.getInjectionSteps());
-        
-        // Add logging properties
-        command.add("-D" + MavenTaskDto.GATLING_RUN_LOGFILENAME + "=" + task.getRunLogFileName());
-        command.add("-D" + MavenTaskDto.GATLING_RUN_LOGAPPEND + "=" + task.isRunLogAppend());
-        
-        // Add additional properties as a single encoded property
-        command.add("-D" + MavenTaskDto.ADDITIONAL_PROPERTIES + "=" + task.getAdditionalProperties());
-        
-        // Add SSL properties to ensure the certificate is trusted
-        String javaHome = System.getProperty("java.home");
-        String trustStore = "./cacerts";
-        command.add("-Djavax.net.ssl.trustStore=" + trustStore);
-        command.add("-Djavax.net.ssl.trustStorePassword=changeit");
-        
-        logger.info("Executing command: " + String.join(" ", command));
-        logger.info("Using truststore: " + trustStore);
-        
-        // Actually execute the command
-        ProcessBuilder pb = new ProcessBuilder(command);
-        pb.directory(new File(".")); // Set working directory to current project
-        pb.redirectErrorStream(true); // Combine stdout and stderr
-        
-        // Add JAVA_HOME to environment to ensure same JVM is used
-        Map<String, String> env = pb.environment();
-        env.put("JAVA_HOME", javaHome);
-        
-        Process process = pb.start();
-        
-        // Read and log the output
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(process.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                logger.info("GATLING: " + line);
-                
-                // Look for query execution indicators in the output
-                if (line.contains("REQUEST") || line.contains("query") || 
-                    line.contains("SQL") || line.contains("XMLA") ||
-                    line.contains("executing") || line.contains("submitting")) {
-                    logger.info("QUERY ACTIVITY DETECTED: " + line);
+    // Execute a single simulation
+    private void executeSimulation(MavenTaskDto<ClosedStep> task) {
+        try {
+            // Build the Maven command with all required properties
+            List<String> command = new ArrayList<>();
+            command.add("mvn");
+            command.add(task.getMavenCommand());
+            command.add("-D" + MavenTaskDto.GATLING_SIMULATION_CLASS + "=" + task.getSimulationClass());
+            
+            // Add model and runId as system properties
+            command.add("-D" + MavenTaskDto.ATSCALE_MODEL + "=" + task.getModel());
+            command.add("-D" + MavenTaskDto.GATLING_RUN_ID + "=" + task.getRunId());
+            command.add("-D" + MavenTaskDto.GATLING_RUN_DESCRIPTION + "=" + task.getRunDescription());
+            
+            // Add injection steps
+            command.add("-D" + MavenTaskDto.GATLING_INJECTION_STEPS + "=" + task.getInjectionSteps());
+            
+            // Add logging properties
+            command.add("-D" + MavenTaskDto.GATLING_RUN_LOGFILENAME + "=" + task.getRunLogFileName());
+            command.add("-D" + MavenTaskDto.GATLING_RUN_LOGAPPEND + "=" + task.isRunLogAppend());
+            
+            // Add additional properties
+            command.add("-D" + MavenTaskDto.ADDITIONAL_PROPERTIES + "=" + task.getAdditionalProperties());
+            
+            // Add SSL properties to ensure the certificate is trusted - FIX for XMLA NullPointerException
+            command.add("-Djavax.net.ssl.trustStore=./cacerts");
+            command.add("-Djavax.net.ssl.trustStorePassword=changeit");
+            command.add("-Djavax.net.ssl.keyStore=./cacerts");
+            command.add("-Djavax.net.ssl.keyStorePassword=changeit");
+            command.add("-Dsun.security.ssl.allowUnsafeRenegotiation=true");
+            
+            // Add Java system properties for SSL debugging (optional)
+            command.add("-Djavax.net.debug=ssl,handshake");
+            
+            logger.info("Executing command: " + String.join(" ", command));
+            logger.info("Using truststore: ./cacerts");
+            
+            // Actually execute the command
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(new File(".")); // Set working directory to current project
+            pb.redirectErrorStream(true); // Combine stdout and stderr
+            
+            // Add JAVA_HOME to environment to ensure same JVM is used
+            Map<String, String> env = pb.environment();
+            env.put("JAVA_HOME", System.getProperty("java.home"));
+            
+            Process process = pb.start();
+            
+            // Read and log the output
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    logger.info("GATLING: " + line);
+                    
+                    // Look for query execution indicators in the output
+                    if (line.contains("REQUEST") || line.contains("query") || 
+                        line.contains("SQL") || line.contains("XMLA") ||
+                        line.contains("executing") || line.contains("submitting")) {
+                        logger.info("QUERY ACTIVITY DETECTED: " + line);
+                    }
+                    
+                    // Look for SSL/TLS related messages
+                    if (line.contains("SSL") || line.contains("TLS") || line.contains("certificate")) {
+                        logger.info("SSL/TLS INFO: " + line);
+                    }
                 }
             }
+            
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                logger.info("Simulation completed successfully: " + task.getTaskName());
+            } else {
+                logger.warning("Simulation exited with code " + exitCode + ": " + task.getTaskName());
+            }
+            
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error executing simulation: " + task.getTaskName(), e);
         }
-        
-        int exitCode = process.waitFor();
-        if (exitCode == 0) {
-            logger.info("Simulation completed successfully: " + task.getTaskName());
-        } else {
-            logger.warning("Simulation exited with code " + exitCode + ": " + task.getTaskName());
-        }
-        
-    } catch (Exception e) {
-        logger.log(Level.SEVERE, "Error executing simulation: " + task.getTaskName(), e);
     }
-}
     
     public List<MavenTaskDto<ClosedStep>> getTasks() {
         List<MavenTaskDto<ClosedStep>> tasks = new ArrayList<>();
@@ -187,7 +198,9 @@ private void executeSimulation(MavenTaskDto<ClosedStep> task) {
                            ", Cube: " + config.cubeName + 
                            ", Catalog: " + config.catalogName);
                 
-                tasks.addAll(createTasksForCube(config.cubeName, config.catalogName, connectionDetails, systemsProps));
+                // Updated to pass cubeIdentifier and systemsProps
+                tasks.addAll(createTasksForCube(cubeIdentifier, config.cubeName, config.catalogName, 
+                                               connectionDetails, systemsProps));
             }
             
             logger.info("Created " + tasks.size() + " tasks for " + cubeConfigs.size() + " cubes");
@@ -283,34 +296,85 @@ private void executeSimulation(MavenTaskDto<ClosedStep> task) {
         return props;
     }
     
-    private List<MavenTaskDto<ClosedStep>> createTasksForCube(String cubeName, String catalogName, Map<String, String> connectionDetails, Properties systemsProps) {
+    private List<MavenTaskDto<ClosedStep>> createTasksForCube(String cubeIdentifier, String cubeName, String catalogName, 
+                                                             Map<String, String> connectionDetails, Properties systemsProps) {
         List<MavenTaskDto<ClosedStep>> cubeTasks = new ArrayList<>();
         
         try {
-            // Check for JDBC queries file - use the actual cube name for file lookup
-            String jdbcFileName = cubeName + "_jdbc_queries.json";
-            File jdbcFile = getQueryFileWithTimestamp(jdbcFileName);
+            // Check for JDBC CSV file
+            String jdbcCsvFile = systemsProps.getProperty("atscale." + cubeIdentifier + ".jdbc.setIngestionFileName");
+            boolean jdbcHasHeader = Boolean.parseBoolean(
+                systemsProps.getProperty("atscale." + cubeIdentifier + ".jdbc.setIngestionFileHasHeader", "true")
+            );
             
-            if (jdbcFile != null && jdbcFile.exists()) {
-                MavenTaskDto<ClosedStep> jdbcTask = createTaskForQueryFile(cubeName, catalogName, jdbcFile, "jdbc", connectionDetails);
-                if (jdbcTask != null) {
-                    cubeTasks.add(jdbcTask);
+            if (jdbcCsvFile != null && !jdbcCsvFile.trim().isEmpty()) {
+                File jdbcFile = new File(WORKING_DIR, INGEST_DIR + File.separator + jdbcCsvFile);
+                if (jdbcFile.exists()) {
+                    MavenTaskDto<ClosedStep> jdbcTask = createTaskForCsvFile(cubeName, catalogName, jdbcFile, 
+                                                                            "jdbc", connectionDetails, jdbcHasHeader);
+                    if (jdbcTask != null) {
+                        cubeTasks.add(jdbcTask);
+                        logger.info("Using CSV file for JDBC queries: " + jdbcCsvFile + " (hasHeader: " + jdbcHasHeader + ")");
+                    } else {
+                        logger.warning("Failed to create JDBC CSV task for cube: " + cubeName);
+                    }
+                } else {
+                    logger.warning("JDBC CSV file not found: " + jdbcFile.getAbsolutePath());
                 }
             } else {
-                logger.warning("JDBC queries file not found for cube: " + cubeName + " (looking for: " + jdbcFileName + ")");
+                // Fall back to JSON if CSV not configured
+                String jdbcFileName = cubeName + "_jdbc_queries.json";
+                File jdbcFile = getQueryFileWithTimestamp(jdbcFileName);
+                
+                if (jdbcFile != null && jdbcFile.exists()) {
+                    MavenTaskDto<ClosedStep> jdbcTask = createTaskForJsonFile(cubeName, catalogName, jdbcFile, 
+                                                                             "jdbc", connectionDetails);
+                    if (jdbcTask != null) {
+                        cubeTasks.add(jdbcTask);
+                    } else {
+                        logger.warning("Failed to create JDBC JSON task for cube: " + cubeName);
+                    }
+                } else {
+                    logger.warning("JDBC queries file not found for cube: " + cubeName + " (looking for: " + jdbcFileName + ")");
+                }
             }
             
-            // Check for XMLA queries file - use the actual cube name for file lookup
-            String xmlaFileName = cubeName + "_xmla_queries.json";
-            File xmlaFile = getQueryFileWithTimestamp(xmlaFileName);
+            // Check for XMLA CSV file
+            String xmlaCsvFile = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.setIngestionFileName");
+            boolean xmlaHasHeader = Boolean.parseBoolean(
+                systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.setIngestionFileHasHeader", "true")
+            );
             
-            if (xmlaFile != null && xmlaFile.exists()) {
-                MavenTaskDto<ClosedStep> xmlaTask = createTaskForQueryFile(cubeName, catalogName, xmlaFile, "xmla", connectionDetails);
-                if (xmlaTask != null) {
-                    cubeTasks.add(xmlaTask);
+            if (xmlaCsvFile != null && !xmlaCsvFile.trim().isEmpty()) {
+                File xmlaFile = new File(WORKING_DIR, INGEST_DIR + File.separator + xmlaCsvFile);
+                if (xmlaFile.exists()) {
+                    MavenTaskDto<ClosedStep> xmlaTask = createTaskForCsvFile(cubeName, catalogName, xmlaFile, 
+                                                                            "xmla", connectionDetails, xmlaHasHeader);
+                    if (xmlaTask != null) {
+                        cubeTasks.add(xmlaTask);
+                        logger.info("Using CSV file for XMLA queries: " + xmlaCsvFile + " (hasHeader: " + xmlaHasHeader + ")");
+                    } else {
+                        logger.warning("Failed to create XMLA CSV task for cube: " + cubeName);
+                    }
+                } else {
+                    logger.warning("XMLA CSV file not found: " + xmlaFile.getAbsolutePath());
                 }
             } else {
-                logger.warning("XMLA queries file not found for cube: " + cubeName + " (looking for: " + xmlaFileName + ")");
+                // Fall back to JSON if CSV not configured
+                String xmlaFileName = cubeName + "_xmla_queries.json";
+                File xmlaFile = getQueryFileWithTimestamp(xmlaFileName);
+                
+                if (xmlaFile != null && xmlaFile.exists()) {
+                    MavenTaskDto<ClosedStep> xmlaTask = createTaskForJsonFile(cubeName, catalogName, xmlaFile, 
+                                                                             "xmla", connectionDetails);
+                    if (xmlaTask != null) {
+                        cubeTasks.add(xmlaTask);
+                    } else {
+                        logger.warning("Failed to create XMLA JSON task for cube: " + cubeName);
+                    }
+                } else {
+                    logger.warning("XMLA queries file not found for cube: " + cubeName + " (looking for: " + xmlaFileName + ")");
+                }
             }
             
         } catch (Exception e) {
@@ -352,66 +416,150 @@ private void executeSimulation(MavenTaskDto<ClosedStep> task) {
         }
     }
     
-   private MavenTaskDto<ClosedStep> createTaskForQueryFile(String cubeName, String catalogName, File queryFile, String protocol, Map<String, String> connectionDetails) {
-    try {
-        // Create task with descriptive name
-        String taskName = String.format("%s %s User Simulation", cubeName, protocol.toUpperCase());
-        MavenTaskDto<ClosedStep> task = new MavenTaskDto<>(taskName);
+    // Create task for JSON file
+    private MavenTaskDto<ClosedStep> createTaskForJsonFile(String cubeName, String catalogName, File queryFile, 
+                                                          String protocol, Map<String, String> connectionDetails) {
+        try {
+            // Create task with descriptive name
+            String taskName = String.format("%s %s Simulation (JSON)", cubeName, protocol.toUpperCase());
+            MavenTaskDto<ClosedStep> task = new MavenTaskDto<>(taskName);
 
-        // Set the simulation class based on protocol
-        String simulationClass;
-        if ("xmla".equals(protocol)) {
-            simulationClass = "com.atscale.java.xmla.simulations.AtScaleXmlaClosedInjectionStepSimulation";
-        } else {
-            simulationClass = "com.atscale.java.jdbc.simulations.AtScaleClosedInjectionStepSimulation";
+            // Set the simulation class based on protocol
+            String simulationClass;
+            if ("xmla".equals(protocol)) {
+                simulationClass = "com.atscale.java.xmla.simulations.AtScaleXmlaClosedInjectionStepSimulation";
+            } else {
+                simulationClass = "com.atscale.java.jdbc.simulations.AtScaleClosedInjectionStepSimulation";
+            }
+            task.setSimulationClass(simulationClass);
+            
+            // Set the cube name as the model
+            task.setModel(cubeName);
+            
+            // Set run description
+            task.setRunDescription(String.format("%s %s Cube Tests (JSON)", cubeName, protocol.toUpperCase()));
+            
+            // Create injection steps
+            List<ClosedStep> closedSteps = new ArrayList<>();
+            closedSteps.add(new ConstantConcurrentUsersClosedInjectionStep(1, 30)); // users, durationInSeconds
+            
+            // Set injection steps
+            task.setInjectionSteps(closedSteps);
+            
+            // Set other required properties
+            task.setMavenCommand("gatling:test");
+            task.setRunId("SequentialRun-" + cubeName.replace(" ", "") + "-" + protocol + "-JSON");
+            task.setRunLogFileName(cubeName.replace(" ", "_") + "_" + protocol + "_sequential.log");
+            task.setLoggingAsAppend(false);
+            
+            // Build additional properties
+            Map<String, String> additionalProperties = new HashMap<>();
+            additionalProperties.put("queryFile", QUERIES_DIR + "/" + queryFile.getName());
+            additionalProperties.put("queryFileType", "json");
+            additionalProperties.put("modelName", cubeName);
+            additionalProperties.put("catalogName", catalogName);
+            additionalProperties.put("protocol", protocol);
+            additionalProperties.put("baseUrl", "http://" + connectionDetails.get("host") + ":10500");
+            additionalProperties.put("username", connectionDetails.get("username"));
+            additionalProperties.put("password", connectionDetails.get("password"));
+            additionalProperties.put("catalog", catalogName);
+            
+            // Add SSL properties - CRITICAL FIX for XMLA NullPointerException
+            additionalProperties.put("javax.net.ssl.trustStore", "./cacerts");
+            additionalProperties.put("javax.net.ssl.trustStorePassword", "changeit");
+            additionalProperties.put("javax.net.ssl.keyStore", "./cacerts");
+            additionalProperties.put("javax.net.ssl.keyStorePassword", "changeit");
+            additionalProperties.put("sun.security.ssl.allowUnsafeRenegotiation", "true");
+            
+            // Use setAdditionalProperties with the Map
+            task.setAdditionalProperties(additionalProperties);
+            
+            logger.info("Created sequential closed step task for cube: " + cubeName + 
+                       " (catalog: " + catalogName + ")" +
+                       ", protocol: " + protocol + 
+                       ", file: " + queryFile.getName());
+            
+            return task;
+            
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error creating task for cube: " + cubeName + ", protocol: " + protocol, e);
+            return null;
         }
-        task.setSimulationClass(simulationClass);
-        
-        // Set the cube name as the model (for both JDBC and XMLA) - this is what PropertiesManager will use
-        task.setModel(cubeName);
-        
-        // Set run description
-        task.setRunDescription(String.format("%s %s Cube Tests", cubeName, protocol.toUpperCase()));
-        
-        // Create injection steps using the correct constructor signature
-        List<ClosedStep> closedSteps = new ArrayList<>();
-        closedSteps.add(new ConstantConcurrentUsersClosedInjectionStep(1, 30)); // users, durationInSeconds
-        
-        // Set injection steps
-        task.setInjectionSteps(closedSteps);
-        
-        // Set other required properties from the original example
-        task.setMavenCommand("gatling:test");
-        task.setRunId("DynamicRun-" + cubeName.replace(" ", "") + "-" + protocol);
-        task.setRunLogFileName(cubeName.replace(" ", "_") + "_" + protocol + ".log");
-        task.setLoggingAsAppend(false);
-        
-        // Build additional properties as a Map (which will be JSON encoded and Base64 encoded by MavenTaskDto)
-        Map<String, String> additionalProperties = new HashMap<>();
-        additionalProperties.put("queryFile", QUERIES_DIR + "/" + queryFile.getName());
-        additionalProperties.put("modelName", cubeName); // Use cube name for both JDBC and XMLA
-        additionalProperties.put("catalogName", catalogName); // Add catalog name for reference
-        additionalProperties.put("protocol", protocol);
-        additionalProperties.put("baseUrl", "http://" + connectionDetails.get("host") + ":10500");
-        additionalProperties.put("username", connectionDetails.get("username"));
-        additionalProperties.put("password", connectionDetails.get("password"));
-        additionalProperties.put("catalog", catalogName); // Add catalog explicitly for XMLA
-        
-        // Use setAdditionalProperties with the Map (MavenTaskDto will handle encoding)
-        task.setAdditionalProperties(additionalProperties);
-        
-        logger.info("Created task for cube: " + cubeName + 
-                   " (catalog: " + catalogName + ")" +
-                   ", protocol: " + protocol + 
-                   ", file: " + queryFile.getName());
-        
-        return task;
-        
-    } catch (Exception e) {
-        logger.log(Level.SEVERE, "Error creating task for cube: " + cubeName + ", protocol: " + protocol, e);
-        return null;
     }
-}
+    
+    // Create task for CSV file
+    private MavenTaskDto<ClosedStep> createTaskForCsvFile(String cubeName, String catalogName, File csvFile, 
+                                                         String protocol, Map<String, String> connectionDetails, 
+                                                         boolean hasHeader) {
+        try {
+            // Create task with descriptive name
+            String taskName = String.format("%s %s Simulation (CSV)", cubeName, protocol.toUpperCase());
+            MavenTaskDto<ClosedStep> task = new MavenTaskDto<>(taskName);
+
+            // Set the simulation class based on protocol
+            String simulationClass;
+            if ("xmla".equals(protocol)) {
+                simulationClass = "com.atscale.java.xmla.simulations.AtScaleXmlaClosedInjectionStepSimulation";
+            } else {
+                simulationClass = "com.atscale.java.jdbc.simulations.AtScaleClosedInjectionStepSimulation";
+            }
+            task.setSimulationClass(simulationClass);
+            
+            // Set the cube name as the model
+            task.setModel(cubeName);
+            
+            // Set run description
+            task.setRunDescription(String.format("%s %s Cube Tests (CSV)", cubeName, protocol.toUpperCase()));
+            
+            // Create injection steps
+            List<ClosedStep> closedSteps = new ArrayList<>();
+            closedSteps.add(new ConstantConcurrentUsersClosedInjectionStep(1, 30)); // users, durationInSeconds
+            
+            // Set injection steps
+            task.setInjectionSteps(closedSteps);
+            
+            // Set other required properties
+            task.setMavenCommand("gatling:test");
+            task.setRunId("SequentialRun-" + cubeName.replace(" ", "") + "-" + protocol + "-CSV");
+            task.setRunLogFileName(cubeName.replace(" ", "_") + "_" + protocol + "_sequential_csv.log");
+            task.setLoggingAsAppend(false);
+            
+            // Build additional properties
+            Map<String, String> additionalProperties = new HashMap<>();
+            additionalProperties.put("queryFile", INGEST_DIR + "/" + csvFile.getName());
+            additionalProperties.put("queryFileType", "csv");
+            additionalProperties.put("csvHasHeader", String.valueOf(hasHeader));
+            additionalProperties.put("modelName", cubeName);
+            additionalProperties.put("catalogName", catalogName);
+            additionalProperties.put("protocol", protocol);
+            additionalProperties.put("baseUrl", "http://" + connectionDetails.get("host") + ":10500");
+            additionalProperties.put("username", connectionDetails.get("username"));
+            additionalProperties.put("password", connectionDetails.get("password"));
+            additionalProperties.put("catalog", catalogName);
+            
+            // Add SSL properties - CRITICAL FIX for XMLA NullPointerException
+            additionalProperties.put("javax.net.ssl.trustStore", "./cacerts");
+            additionalProperties.put("javax.net.ssl.trustStorePassword", "changeit");
+            additionalProperties.put("javax.net.ssl.keyStore", "./cacerts");
+            additionalProperties.put("javax.net.ssl.keyStorePassword", "changeit");
+            additionalProperties.put("sun.security.ssl.allowUnsafeRenegotiation", "true");
+            
+            // Use setAdditionalProperties with the Map
+            task.setAdditionalProperties(additionalProperties);
+            
+            logger.info("Created sequential closed step CSV task for cube: " + cubeName + 
+                       " (catalog: " + catalogName + ")" +
+                       ", protocol: " + protocol + 
+                       ", file: " + csvFile.getName() +
+                       ", hasHeader: " + hasHeader);
+            
+            return task;
+            
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error creating CSV task for cube: " + cubeName + ", protocol: " + protocol, e);
+            return null;
+        }
+    }
     
     public String getExecutorName() {
         return "ClosedStepSequentialSimulationExecutor";

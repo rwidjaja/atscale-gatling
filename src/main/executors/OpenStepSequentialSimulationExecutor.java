@@ -25,6 +25,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
     private static final Logger logger = Logger.getLogger(OpenStepSequentialSimulationExecutor.class.getName());
     private static final String WORKING_DIR = "working_dir";
     private static final String QUERIES_DIR = "queries";
+    private static final String INGEST_DIR = "ingest"; // Added INGEST_DIR
     private static final String CONFIG_DIR = "config";
     
     static {
@@ -73,7 +74,9 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
                            ", Cube: " + config.cubeName + 
                            ", Catalog: " + config.catalogName);
                 
-                tasks.addAll(createTasksForCube(config.cubeName, config.catalogName, connectionDetails, systemsProps));
+                // Updated to pass cubeIdentifier and systemsProps
+                tasks.addAll(createTasksForCube(cubeIdentifier, config.cubeName, config.catalogName, 
+                                               connectionDetails, systemsProps));
             }
             
             logger.info("Created " + tasks.size() + " open step tasks for " + cubeConfigs.size() + " cubes");
@@ -82,7 +85,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
             logger.log(Level.SEVERE, "Error loading tasks", e);
         }
         
-        return withAdditionalProperties(tasks);
+        return tasks; // Removed withAdditionalProperties call
     }
     
     private Map<String, CubeConfig> getCubeConfigurations(Properties systemsProps) {
@@ -169,34 +172,75 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         return props;
     }
     
-    private List<MavenTaskDto<OpenStep>> createTasksForCube(String cubeName, String catalogName, Map<String, String> connectionDetails, Properties systemsProps) {
+    private List<MavenTaskDto<OpenStep>> createTasksForCube(String cubeIdentifier, String cubeName, String catalogName, 
+                                                           Map<String, String> connectionDetails, Properties systemsProps) {
         List<MavenTaskDto<OpenStep>> cubeTasks = new ArrayList<>();
         
         try {
-            // Check for JDBC queries file - use the actual cube name for file lookup
-            String jdbcFileName = cubeName + "_jdbc_queries.json";
-            File jdbcFile = getQueryFileWithTimestamp(jdbcFileName);
+            // Check for JDBC CSV file - NEW LOGIC
+            String jdbcCsvFile = systemsProps.getProperty("atscale." + cubeIdentifier + ".jdbc.setIngestionFileName");
+            boolean jdbcHasHeader = Boolean.parseBoolean(
+                systemsProps.getProperty("atscale." + cubeIdentifier + ".jdbc.setIngestionFileHasHeader", "true")
+            );
             
-            if (jdbcFile != null && jdbcFile.exists()) {
-                MavenTaskDto<OpenStep> jdbcTask = createTaskForQueryFile(cubeName, catalogName, jdbcFile, "jdbc", connectionDetails);
-                if (jdbcTask != null) {
-                    cubeTasks.add(jdbcTask);
+            if (jdbcCsvFile != null && !jdbcCsvFile.trim().isEmpty()) {
+                File jdbcFile = new File(WORKING_DIR, INGEST_DIR + File.separator + jdbcCsvFile);
+                if (jdbcFile.exists()) {
+                    MavenTaskDto<OpenStep> jdbcTask = createTaskForCsvFile(cubeName, catalogName, jdbcFile, 
+                                                                          "jdbc", connectionDetails, jdbcHasHeader);
+                    if (jdbcTask != null) {
+                        cubeTasks.add(jdbcTask);
+                    }
+                } else {
+                    logger.warning("JDBC CSV file not found: " + jdbcFile.getAbsolutePath());
                 }
             } else {
-                logger.warning("JDBC queries file not found for cube: " + cubeName + " (looking for: " + jdbcFileName + ")");
+                // Fall back to JSON if CSV not configured
+                String jdbcFileName = cubeName + "_jdbc_queries.json";
+                File jdbcFile = getQueryFileWithTimestamp(jdbcFileName);
+                
+                if (jdbcFile != null && jdbcFile.exists()) {
+                    MavenTaskDto<OpenStep> jdbcTask = createTaskForJsonFile(cubeName, catalogName, jdbcFile, 
+                                                                           "jdbc", connectionDetails);
+                    if (jdbcTask != null) {
+                        cubeTasks.add(jdbcTask);
+                    }
+                } else {
+                    logger.warning("JDBC queries file not found for cube: " + cubeName + " (looking for: " + jdbcFileName + ")");
+                }
             }
             
-            // Check for XMLA queries file - use the actual cube name for file lookup
-            String xmlaFileName = cubeName + "_xmla_queries.json";
-            File xmlaFile = getQueryFileWithTimestamp(xmlaFileName);
+            // Check for XMLA CSV file - NEW LOGIC
+            String xmlaCsvFile = systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.setIngestionFileName");
+            boolean xmlaHasHeader = Boolean.parseBoolean(
+                systemsProps.getProperty("atscale." + cubeIdentifier + ".xmla.setIngestionFileHasHeader", "true")
+            );
             
-            if (xmlaFile != null && xmlaFile.exists()) {
-                MavenTaskDto<OpenStep> xmlaTask = createTaskForQueryFile(cubeName, catalogName, xmlaFile, "xmla", connectionDetails);
-                if (xmlaTask != null) {
-                    cubeTasks.add(xmlaTask);
+            if (xmlaCsvFile != null && !xmlaCsvFile.trim().isEmpty()) {
+                File xmlaFile = new File(WORKING_DIR, INGEST_DIR + File.separator + xmlaCsvFile);
+                if (xmlaFile.exists()) {
+                    MavenTaskDto<OpenStep> xmlaTask = createTaskForCsvFile(cubeName, catalogName, xmlaFile, 
+                                                                          "xmla", connectionDetails, xmlaHasHeader);
+                    if (xmlaTask != null) {
+                        cubeTasks.add(xmlaTask);
+                    }
+                } else {
+                    logger.warning("XMLA CSV file not found: " + xmlaFile.getAbsolutePath());
                 }
             } else {
-                logger.warning("XMLA queries file not found for cube: " + cubeName + " (looking for: " + xmlaFileName + ")");
+                // Fall back to JSON if CSV not configured
+                String xmlaFileName = cubeName + "_xmla_queries.json";
+                File xmlaFile = getQueryFileWithTimestamp(xmlaFileName);
+                
+                if (xmlaFile != null && xmlaFile.exists()) {
+                    MavenTaskDto<OpenStep> xmlaTask = createTaskForJsonFile(cubeName, catalogName, xmlaFile, 
+                                                                           "xmla", connectionDetails);
+                    if (xmlaTask != null) {
+                        cubeTasks.add(xmlaTask);
+                    }
+                } else {
+                    logger.warning("XMLA queries file not found for cube: " + cubeName + " (looking for: " + xmlaFileName + ")");
+                }
             }
             
         } catch (Exception e) {
@@ -238,10 +282,12 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         }
     }
     
-    private MavenTaskDto<OpenStep> createTaskForQueryFile(String cubeName, String catalogName, File queryFile, String protocol, Map<String, String> connectionDetails) {
+    // NEW METHOD: Create task for JSON file
+    private MavenTaskDto<OpenStep> createTaskForJsonFile(String cubeName, String catalogName, File queryFile, 
+                                                        String protocol, Map<String, String> connectionDetails) {
         try {
             // Create task with descriptive name
-            String taskName = String.format("%s %s Open Simulation", cubeName, protocol.toUpperCase());
+            String taskName = String.format("%s %s Open Simulation (JSON)", cubeName, protocol.toUpperCase());
             MavenTaskDto<OpenStep> task = new MavenTaskDto<>(taskName);
 
             // Set the simulation class based on protocol
@@ -257,7 +303,7 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
             task.setModel(cubeName);
             
             // Set run description
-            task.setRunDescription(String.format("%s %s Open Cube Tests", cubeName, protocol.toUpperCase()));
+            task.setRunDescription(String.format("%s %s Open Cube Tests (JSON)", cubeName, protocol.toUpperCase()));
             
             // Create injection steps using AtOnceUsersOpenInjectionStep (open workload)
             List<OpenStep> openSteps = new ArrayList<>();
@@ -268,20 +314,21 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
             
             // Set other required properties from the original example
             task.setMavenCommand("gatling:test");
-            task.setRunId("OpenRun-" + cubeName.replace(" ", "") + "-" + protocol);
+            task.setRunId("OpenRun-" + cubeName.replace(" ", "") + "-" + protocol + "-JSON");
             task.setRunLogFileName(cubeName.replace(" ", "_") + "_" + protocol + "_open.log");
             task.setLoggingAsAppend(false);
             
             // Build additional properties as a Map (which will be JSON encoded and Base64 encoded by MavenTaskDto)
             Map<String, String> additionalProperties = new HashMap<>();
             additionalProperties.put("queryFile", QUERIES_DIR + "/" + queryFile.getName());
-            additionalProperties.put("modelName", cubeName); // Use cube name for both JDBC and XMLA
-            additionalProperties.put("catalogName", catalogName); // Add catalog name for reference
+            additionalProperties.put("queryFileType", "json");
+            additionalProperties.put("modelName", cubeName);
+            additionalProperties.put("catalogName", catalogName);
             additionalProperties.put("protocol", protocol);
             additionalProperties.put("baseUrl", "http://" + connectionDetails.get("host") + ":10500");
             additionalProperties.put("username", connectionDetails.get("username"));
             additionalProperties.put("password", connectionDetails.get("password"));
-            additionalProperties.put("catalog", catalogName); // Add catalog explicitly for XMLA
+            additionalProperties.put("catalog", catalogName);
             
             // Add SSL properties to ensure the certificate is trusted
             String javaHome = System.getProperty("java.home");
@@ -305,33 +352,77 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         }
     }
     
-    /**
-     * Default implementation.
-     *<p/>
-     * <p>Loads additional properties from AWS Secrets Manager if configured.</p>
-     * <p>Custom implementations: Change the implementation for other secret management systems as needed.
-     * You may override the {@code createSecretsManager} method in the parent class
-     * to provide a different SecretsManager implementation, or override the
-     * {@code additionalProperties} method to change how properties are loaded.</p>
-     */
-    private Map<String, String> getAdditionalProperties() {
-        AdditionalPropertiesLoader loader = new AdditionalPropertiesLoader();
-        return loader.fetchAdditionalProperties(AdditionalPropertiesLoader.SecretsManagerType.AWS);
-    }
+    // NEW METHOD: Create task for CSV file
+    private MavenTaskDto<OpenStep> createTaskForCsvFile(String cubeName, String catalogName, File csvFile, 
+                                                       String protocol, Map<String, String> connectionDetails, 
+                                                       boolean hasHeader) {
+        try {
+            // Create task with descriptive name
+            String taskName = String.format("%s %s Open Simulation (CSV)", cubeName, protocol.toUpperCase());
+            MavenTaskDto<OpenStep> task = new MavenTaskDto<>(taskName);
 
-    private List<MavenTaskDto<OpenStep>> withAdditionalProperties(List<MavenTaskDto<OpenStep>> tasks) {
-        Map<String, String> additionalProperties = getAdditionalProperties();
-        for(MavenTaskDto<OpenStep> task : tasks) {
-            // Merge with existing additional properties if any
-            Map<String, String> existingProps = task.decodeAdditionalProperties(task.getAdditionalProperties());
-            if (existingProps != null) {
-                existingProps.putAll(additionalProperties);
-                task.setAdditionalProperties(existingProps);
+            // Set the simulation class based on protocol
+            String simulationClass;
+            if ("xmla".equals(protocol)) {
+                simulationClass = "com.atscale.java.xmla.simulations.AtScaleXmlaOpenInjectionStepSimulation";
             } else {
-                task.setAdditionalProperties(additionalProperties);
+                simulationClass = "com.atscale.java.jdbc.simulations.AtScaleOpenInjectionStepSimulation";
             }
+            task.setSimulationClass(simulationClass);
+            
+            // Set the cube name as the model (for both JDBC and XMLA) - this is what PropertiesManager will use
+            task.setModel(cubeName);
+            
+            // Set run description
+            task.setRunDescription(String.format("%s %s Open Cube Tests (CSV)", cubeName, protocol.toUpperCase()));
+            
+            // Create injection steps using AtOnceUsersOpenInjectionStep (open workload)
+            List<OpenStep> openSteps = new ArrayList<>();
+            openSteps.add(new AtOnceUsersOpenInjectionStep(1)); // 1 user at once
+            
+            // Set injection steps
+            task.setInjectionSteps(openSteps);
+            
+            // Set other required properties from the original example
+            task.setMavenCommand("gatling:test");
+            task.setRunId("OpenRun-" + cubeName.replace(" ", "") + "-" + protocol + "-CSV");
+            task.setRunLogFileName(cubeName.replace(" ", "_") + "_" + protocol + "_open_csv.log");
+            task.setLoggingAsAppend(false);
+            
+            // Build additional properties as a Map (which will be JSON encoded and Base64 encoded by MavenTaskDto)
+            Map<String, String> additionalProperties = new HashMap<>();
+            additionalProperties.put("queryFile", INGEST_DIR + "/" + csvFile.getName());
+            additionalProperties.put("queryFileType", "csv");
+            additionalProperties.put("csvHasHeader", String.valueOf(hasHeader));
+            additionalProperties.put("modelName", cubeName);
+            additionalProperties.put("catalogName", catalogName);
+            additionalProperties.put("protocol", protocol);
+            additionalProperties.put("baseUrl", "http://" + connectionDetails.get("host") + ":10500");
+            additionalProperties.put("username", connectionDetails.get("username"));
+            additionalProperties.put("password", connectionDetails.get("password"));
+            additionalProperties.put("catalog", catalogName);
+            
+            // Add SSL properties to ensure the certificate is trusted
+            String javaHome = System.getProperty("java.home");
+            String trustStore = "./cacerts";
+            additionalProperties.put("javax.net.ssl.trustStore", trustStore);
+            additionalProperties.put("javax.net.ssl.trustStorePassword", "changeit");
+            
+            // Use setAdditionalProperties with the Map (MavenTaskDto will handle encoding)
+            task.setAdditionalProperties(additionalProperties);
+            
+            logger.info("Created open step CSV task for cube: " + cubeName + 
+                       " (catalog: " + catalogName + ")" +
+                       ", protocol: " + protocol + 
+                       ", file: " + csvFile.getName() +
+                       ", hasHeader: " + hasHeader);
+            
+            return task;
+            
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error creating CSV task for cube: " + cubeName + ", protocol: " + protocol, e);
+            return null;
         }
-        return tasks;
     }
     
     // Helper class to store cube configuration

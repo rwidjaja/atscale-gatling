@@ -1,0 +1,2 @@
+sampler_name,sql_text
+MDX-1,"SELECT  FROM [TPC-DS Benchmark Model] WHERE ([Measures].[m_ss_quantity_sum]) CELL PROPERTIES VALUE, FORMAT_STRING, LANGUAGE, BACK_COLOR, FORE_COLOR, FONT_FLAGS"

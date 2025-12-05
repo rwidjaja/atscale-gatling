@@ -99,7 +99,8 @@ fi
 
 # Build Docker image
 print_info "Building Docker image..."
-docker build --platform linux/amd64 -t rwidjaja/atscale-gatling:latest .
+docker buildx create --use
+docker buildx build --platform linux/amd64,linux/arm64 -t rwidjaja/atscale-gatling:latest --push .
 
 
 if [ $? -eq 0 ]; then

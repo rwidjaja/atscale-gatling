@@ -13,16 +13,14 @@ fi
 
 # Build Docker image
 echo "Step 2: Building Docker image..."
-docker build --platform linux/amd64 -t rwidjaja/atscale-gatling:latest .
+docker buildx create --use
+docker buildx build --platform linux/amd64,linux/arm64 -t rwidjaja/atscale-gatling:latest --push .
 
 if [ $? -ne 0 ]; then
     echo "❌ Docker build failed"
     exit 1
 fi
 
-# Push to Docker Hub
-echo "Step 3: Pushing to Docker Hub..."
-docker push rwidjaja/atscale-gatling:latest
 
 if [ $? -eq 0 ]; then
     echo "✅ Successfully published: rwidjaja/atscale-gatling:latest"

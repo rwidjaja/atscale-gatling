@@ -39,15 +39,18 @@
         </resources>
         <plugins>
             <!-- Compiler Plugin -->
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
-                <configuration>
-                    <compilerArgs>
-                        <arg>-Xdoclint:syntax</arg>
-                    </compilerArgs>
-                </configuration>
-            </plugin>
+                    <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.14.0</version>
+                    <configuration>
+                        <release>21</release>
+                        <compilerArgs>
+                        <arg>-Xdoclint:none</arg>
+                        </compilerArgs>
+                    </configuration>
+                    </plugin>
+
             
             <!-- Resources Plugin -->
             <plugin>

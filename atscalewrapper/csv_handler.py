@@ -45,17 +45,17 @@ class CSVConfigWindow:
         
         # Title
         title_label = tk.Label(main_frame, 
-                              text="Assign CSV Files for Selected Catalog/Cube Pairs",
-                              font=('Arial', 14, 'bold'))
+                            text="Assign CSV Files for Selected Catalog/Cube Pairs",
+                            font=('Arial', 14, 'bold'))
         title_label.pack(pady=(0, 15))
         
         # Instructions
         instr_label = tk.Label(main_frame,
-                              text="For each selected model, assign JDBC and MDX query CSV files.\n" +
-                                   "Files will be copied to ./working_dir/ingest/ folder.\n" +
-                                   "setIngestionFileName will be set to just the filename (no path).",
-                              font=('Arial', 10),
-                              justify=tk.LEFT)
+                            text="For each selected model, assign JDBC and MDX query CSV files.\n"
+                                "Files will be copied to ./working_dir/ingest/ folder.\n"
+                                "setIngestionFileName will be set to just the filename (no path).",
+                            font=('Arial', 10),
+                            justify=tk.LEFT)
         instr_label.pack(pady=(0, 10))
         
         # BUTTONS AT THE TOP
@@ -63,19 +63,19 @@ class CSVConfigWindow:
         button_frame.pack(fill=tk.X, pady=(0, 15))
         
         tk.Button(button_frame, text="Save CSV Configuration", 
-                 command=self.save_configuration,
-                 bg="#F6F8F6", fg='black', font=('Arial', 11, 'bold'),
-                 width=20).pack(side=tk.LEFT, padx=5)
+                command=self.save_configuration,
+                bg="#F6F8F6", fg='black', font=('Arial', 11, 'bold'),
+                width=20).pack(side=tk.LEFT, padx=5)
         
         tk.Button(button_frame, text="Cancel", 
-                 command=self.window.destroy,
-                 bg='#9E9E9E', fg='black', font=('Arial', 11),
-                 width=20).pack(side=tk.LEFT, padx=5)
+                command=self.window.destroy,
+                bg='#9E9E9E', fg='black', font=('Arial', 11),
+                width=20).pack(side=tk.LEFT, padx=5)
         
         tk.Button(button_frame, text="Clear All", 
-                 command=self.clear_all_assignments,
-                 bg='#FF9800', fg='black', font=('Arial', 11),
-                 width=20).pack(side=tk.LEFT, padx=5)
+                command=self.clear_all_assignments,
+                bg='#FF9800', fg='black', font=('Arial', 11),
+                width=20).pack(side=tk.LEFT, padx=5)
         
         # Create scrollable frame for catalog/cube pairs
         canvas = tk.Canvas(main_frame)
@@ -98,9 +98,10 @@ class CSVConfigWindow:
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Status label at the bottom
-        self.status_label = tk.Label(main_frame, text="", fg='blue')
-        self.status_label.pack(pady=(5, 0))
+        # Status label pinned at the bottom of the window
+        self.status_label = tk.Label(self.window, text="", fg='blue')
+        self.status_label.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+
         
     def create_pair_config_row(self, parent, pair, row_index):
         """Create configuration row for a catalog/cube pair"""
@@ -112,7 +113,7 @@ class CSVConfigWindow:
         pair_label = tk.Label(frame, 
                              text=f"{catalog} :: {cube}",
                              font=('Arial', 10, 'bold'),
-                             width=30,
+                             width=60,
                              anchor=tk.W)
         pair_label.grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 10))
         
