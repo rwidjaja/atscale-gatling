@@ -285,8 +285,10 @@ class AtScaleGatlingCore:
             "docker", "run", "--rm", "--platform", "linux/amd64",
             "-v", f"{os.getcwd()}/working_dir:/app/working_dir",
             "-v", f"{os.getcwd()}/config.json:/app/config.json",
-            "-v", f"{os.getcwd()}/root.crt:/root/.postgres/root.crt",
+            "-v", f"{os.getcwd()}/root.crt:/root/.postgresql/root.crt",
+            "-e", "PGSSLROOTCERT=/root/.postgresql/root.crt",
         ]
+
                 
         # Add cacerts if available
         cacerts_path = os.path.join(os.getcwd(), "cacerts")

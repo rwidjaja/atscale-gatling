@@ -10,6 +10,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,6 +23,8 @@ import com.atscale.java.executors.ConcurrentSimulationExecutor;
 import com.atscale.java.executors.MavenTaskDto;
 import com.atscale.java.injectionsteps.ClosedStep;
 import com.atscale.java.injectionsteps.ConstantConcurrentUsersClosedInjectionStep;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ClosedStepConcurrentSimulationExecutor extends ConcurrentSimulationExecutor<ClosedStep> {
 
@@ -25,20 +33,135 @@ public class ClosedStepConcurrentSimulationExecutor extends ConcurrentSimulation
     private static final String QUERIES_DIR = "queries";
     private static final String INGEST_DIR = "ingest";
     private static final String CONFIG_DIR = "config";
-
+    
+    // Cache for injection step configuration
+    private static ConstantConcurrentUsersClosedInjectionStep cachedInjectionStep = null;
+    private static long lastConfigModified = 0;
+    
     static {
         System.setProperty("java.util.logging.SimpleFormatter.format",
                 "[%1$tF %1$tT] [%4$-7s] %5$s %n");
     }
 
-    public static void main(String[] args) {
-        logger.info("ClosedStepConcurrentSimulationExecutor started.");
-
-        ClosedStepConcurrentSimulationExecutor executor = new ClosedStepConcurrentSimulationExecutor();
-        executor.execute();
-
-        logger.info("ClosedStepConcurrentSimulationExecutor completed.");
+public static void main(String[] args) {
+    logger.info("ClosedStepConcurrentSimulationExecutor started.");
+    
+    // Add a shutdown hook to verify System.exit works
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        logger.info("🎯 SHUTDOWN HOOK EXECUTED - System.exit() is working!");
+    }));
+    
+    int exitCode = 0;
+    ExecutorService executorService = null;
+    
+    try {
+        // First, load the configuration to get actual duration
+        int simulationDurationMinutes = 1; // Default
+        try {
+            File runtimeFile = new File("working_dir", "config" + File.separator + "runtime.json");
+            if (runtimeFile.exists()) {
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode rootNode = objectMapper.readTree(runtimeFile);
+                JsonNode executorConfig = rootNode.get("ClosedStepConcurrentSimulationExecutor");
+                if (executorConfig != null) {
+                    JsonNode injectionSteps = executorConfig.get("injectionSteps");
+                    if (injectionSteps != null && injectionSteps.isArray() && injectionSteps.size() > 0) {
+                        JsonNode firstStep = injectionSteps.get(0);
+                        if (firstStep.has("durationSeconds")) {
+                            int durationSeconds = firstStep.get("durationSeconds").asInt(45);
+                            simulationDurationMinutes = (int) Math.max(1, Math.ceil(durationSeconds / 60.0));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to read runtime.json, using default timeout", e);
+        }
+        
+        // Calculate timeout: simulation time + 2 minutes buffer
+        long timeoutSeconds = (simulationDurationMinutes * 60L) + 120L;
+        logger.info("Setting timeout to " + timeoutSeconds + " seconds for " + 
+                   simulationDurationMinutes + " minute simulation");
+        
+        // Create a thread pool to run the simulation with timeout
+        executorService = Executors.newSingleThreadExecutor();
+        Future<?> future = executorService.submit(() -> {
+            ClosedStepConcurrentSimulationExecutor executor = new ClosedStepConcurrentSimulationExecutor();
+            executor.execute();
+        });
+        
+        try {
+            future.get(timeoutSeconds, TimeUnit.SECONDS);
+            logger.info("ClosedStepConcurrentSimulationExecutor completed successfully.");
+        } catch (TimeoutException e) {
+            logger.severe("ClosedStepConcurrentSimulationExecutor timed out after " + 
+                         timeoutSeconds + " seconds! Forcing shutdown...");
+            future.cancel(true); // Interrupt the execution
+            
+            // Dump threads to see what's hanging
+            dumpThreads();
+            
+            exitCode = 1;
+        } catch (ExecutionException e) {
+            logger.log(Level.SEVERE, "ClosedStepConcurrentSimulationExecutor failed", e.getCause());
+            exitCode = 1;
+        } catch (InterruptedException e) {
+            logger.log(Level.SEVERE, "ClosedStepConcurrentSimulationExecutor interrupted", e);
+            exitCode = 1;
+        }
+        
+    } catch (Throwable t) {
+        logger.log(Level.SEVERE, "ClosedStepConcurrentSimulationExecutor failed with error", t);
+        exitCode = 1;
+    } finally {
+        // Shutdown executor service
+        if (executorService != null) {
+            executorService.shutdownNow();
+            try {
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    executorService.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executorService.shutdownNow();
+            }
+        }
+        
+        logger.info("About to call System.exit(" + exitCode + ")");
+        
+        // 🔥 FORCE JVM SHUTDOWN
+        System.exit(exitCode);
     }
+}
+
+    private static void dumpThreads() {
+        try {
+            Map<Thread, StackTraceElement[]> all = Thread.getAllStackTraces();
+            logger.info("=== THREAD DUMP (" + all.size() + " threads) ===");
+            for (Thread t : all.keySet()) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("Thread[name=").append(t.getName())
+                .append(", daemon=").append(t.isDaemon())
+                .append(", state=").append(t.getState())
+                .append(", id=").append(t.getId())
+                .append(", alive=").append(t.isAlive())
+                .append("]");
+                
+                logger.info(sb.toString());
+                
+                // Only show stack traces for non-daemon threads or threads in RUNNABLE state
+                if (!t.isDaemon() || t.getState() == Thread.State.RUNNABLE) {
+                    StackTraceElement[] st = all.get(t);
+                    for (StackTraceElement e : st) {
+                        logger.info("    at " + e.toString());
+                    }
+                }
+            }
+            logger.info("=== END THREAD DUMP ===");
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to dump threads", e);
+        }
+    }
+        
 
     @Override
     protected List<MavenTaskDto<ClosedStep>> getSimulationTasks() {
@@ -78,6 +201,82 @@ public class ClosedStepConcurrentSimulationExecutor extends ConcurrentSimulation
         }
 
         return tasks;
+    }
+
+    private ConstantConcurrentUsersClosedInjectionStep getInjectionStepConfig() {
+        File runtimeFile = new File(WORKING_DIR, CONFIG_DIR + File.separator + "runtime.json");
+        
+        // Check if we need to reload (file changed or not cached)
+        if (cachedInjectionStep != null && runtimeFile.exists() && 
+            runtimeFile.lastModified() <= lastConfigModified) {
+            return cachedInjectionStep;
+        }
+        
+        // Load configuration
+        cachedInjectionStep = loadInjectionStepConfig();
+        if (runtimeFile.exists()) {
+            lastConfigModified = runtimeFile.lastModified();
+        }
+        
+        return cachedInjectionStep;
+    }
+
+    // Update the default values:
+    private ConstantConcurrentUsersClosedInjectionStep loadInjectionStepConfig() {
+        // Default values (fallback) - maintaining original behavior: 1 user for 30 minutes
+        int defaultUsers = 1;
+        long defaultDurationMinutes = 30; // 30 minutes default (original value)
+        
+        File runtimeFile = new File(WORKING_DIR, CONFIG_DIR + File.separator + "runtime.json");
+        
+        // Check if runtime.json exists
+        if (!runtimeFile.exists()) {
+            logger.info("runtime.json not found, using default injection step: users=" + defaultUsers + ", duration=" + defaultDurationMinutes + " minutes");
+            return new ConstantConcurrentUsersClosedInjectionStep(defaultUsers, defaultDurationMinutes);
+        }
+        
+        try (FileInputStream fis = new FileInputStream(runtimeFile);
+            InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8)) {
+            
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(isr);
+            
+            // Get configuration for this executor
+            JsonNode executorConfig = rootNode.get("ClosedStepConcurrentSimulationExecutor");
+            
+            if (executorConfig == null || executorConfig.isNull()) {
+                logger.warning("ClosedStepConcurrentSimulationExecutor not found in runtime.json, using defaults");
+                return new ConstantConcurrentUsersClosedInjectionStep(defaultUsers, defaultDurationMinutes);
+            }
+            
+            // Get injectionSteps array
+            JsonNode injectionSteps = executorConfig.get("injectionSteps");
+            
+            if (injectionSteps == null || !injectionSteps.isArray() || injectionSteps.size() == 0) {
+                logger.warning("injectionSteps not found or empty in runtime.json, using defaults");
+                return new ConstantConcurrentUsersClosedInjectionStep(defaultUsers, defaultDurationMinutes);
+            }
+            
+            // Get the first injection step
+            JsonNode firstStep = injectionSteps.get(0);
+            
+            int users = firstStep.has("users") ? firstStep.get("users").asInt(defaultUsers) : defaultUsers;
+            
+            // Convert seconds to minutes (rounding up to at least 1 minute)
+            // Default durationSeconds from GUI is 45 for concurrent closed steps
+            int durationSeconds = firstStep.has("durationSeconds") ? firstStep.get("durationSeconds").asInt(45) : 45;
+            long durationMinutes = (long) Math.max(1, Math.ceil(durationSeconds / 60.0));
+            
+            logger.info("Loaded injection step from runtime.json: users=" + users + 
+                    ", durationSeconds=" + durationSeconds + 
+                    ", durationMinutes=" + durationMinutes);
+            
+            return new ConstantConcurrentUsersClosedInjectionStep(users, durationMinutes);
+            
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Error reading runtime.json, using defaults", e);
+            return new ConstantConcurrentUsersClosedInjectionStep(defaultUsers, defaultDurationMinutes);
+        }
     }
 
     private Map<String, CubeConfig> getCubeConfigurations(Properties systemsProps) {
@@ -251,8 +450,11 @@ public class ClosedStepConcurrentSimulationExecutor extends ConcurrentSimulation
     }
 
     private MavenTaskDto<ClosedStep> createTaskForJsonFile(String cubeName, String catalogName, File queryFile,
-                                                          String protocol, Map<String, String> connectionDetails) {
+                                                        String protocol, Map<String, String> connectionDetails) {
         try {
+            // Load injection step configuration
+            ConstantConcurrentUsersClosedInjectionStep injectionStep = loadInjectionStepConfig();
+            
             String queryFilePath = QUERIES_DIR + "/" + queryFile.getName();
 
             String sanitizedCubeNameForLogs = cubeName.replace(" ", "_");
@@ -275,7 +477,7 @@ public class ClosedStepConcurrentSimulationExecutor extends ConcurrentSimulation
             task.setRunDescription(String.format("%s %s Concurrent Cube Tests (JSON)", cubeName, protocol.toUpperCase()));
 
             List<ClosedStep> closedSteps = new ArrayList<>();
-            closedSteps.add(new ConstantConcurrentUsersClosedInjectionStep(1, 30));
+            closedSteps.add(injectionStep);  // Use the loaded configuration
             task.setInjectionSteps(closedSteps);
 
             task.setMavenCommand("gatling:test");
@@ -316,7 +518,9 @@ public class ClosedStepConcurrentSimulationExecutor extends ConcurrentSimulation
             logger.info("Created concurrent closed step task - Cube: " + cubeName +
                     ", Catalog: " + catalogName +
                     ", Protocol: " + protocol +
-                    ", Query file: " + queryFile.getName());
+                    ", Query file: " + queryFile.getName() +
+                    ", Users: " + injectionStep.getUsers() +
+                    ", Duration: " + injectionStep.getDurationMinutes() + " minutes");
 
             return task;
 
@@ -327,9 +531,12 @@ public class ClosedStepConcurrentSimulationExecutor extends ConcurrentSimulation
     }
 
     private MavenTaskDto<ClosedStep> createTaskForCsvFile(String cubeName, String catalogName, File csvFile,
-                                                         String protocol, Map<String, String> connectionDetails,
-                                                         boolean hasHeader) {
+                                                        String protocol, Map<String, String> connectionDetails,
+                                                        boolean hasHeader) {
         try {
+            // Load injection step configuration
+            ConstantConcurrentUsersClosedInjectionStep injectionStep = loadInjectionStepConfig();
+            
             String sanitizedCubeNameForLogs = cubeName.replace(" ", "_");
             String sanitizedCatalogNameForLogs = catalogName.replace(" ", "_");
 
@@ -349,7 +556,7 @@ public class ClosedStepConcurrentSimulationExecutor extends ConcurrentSimulation
             task.setRunDescription(String.format("%s %s Concurrent Cube Tests (CSV)", cubeName, protocol.toUpperCase()));
 
             List<ClosedStep> closedSteps = new ArrayList<>();
-            closedSteps.add(new ConstantConcurrentUsersClosedInjectionStep(1, 30));
+            closedSteps.add(injectionStep);  // Use the loaded configuration
             task.setInjectionSteps(closedSteps);
 
             task.setMavenCommand("gatling:test");
@@ -390,7 +597,9 @@ public class ClosedStepConcurrentSimulationExecutor extends ConcurrentSimulation
                     ", Catalog: " + catalogName +
                     ", Protocol: " + protocol +
                     ", CSV file: " + csvFile.getName() +
-                    ", hasHeader: " + hasHeader);
+                    ", hasHeader: " + hasHeader +
+                    ", Users: " + injectionStep.getUsers() +
+                    ", Duration: " + injectionStep.getDurationMinutes() + " minutes");
 
             return task;
 

@@ -1,8 +1,3 @@
-"""
-log_manager.py
-Handles log file cleanup and management.
-"""
-
 import glob
 import os
 import sys
@@ -29,7 +24,7 @@ class LogManager:
         return glob.glob(os.path.join(self.logs_dir, "*.log"))
     
     def clean_logs(self) -> int:
-        """Clean all log files."""
+        """Clean all log files, then create init.log."""
         log_files = self.get_existing_logs()
         cleaned_count = 0
         
@@ -40,6 +35,15 @@ class LogManager:
             except Exception as e:
                 print(f"❌ Failed to delete {log_file}: {e}")
         
+        # Always create init.log after cleanup
+        init_path = os.path.join(self.logs_dir, "init.log")
+        try:
+            with open(init_path, "w", encoding="utf-8") as f:
+                f.write("Log initialization complete.\n")
+            print(f"📝 Created {init_path}")
+        except Exception as e:
+            print(f"❌ Failed to create init.log: {e}")
+        
         return cleaned_count
     
     def check_and_clean_gui(self) -> bool:
@@ -48,17 +52,20 @@ class LogManager:
         log_files = self.get_existing_logs()
         
         if not log_files:
-            return True  # No logs to clean
+            # Still create init.log even if no logs existed
+            self.clean_logs()
+            return True
         
         if not GUI_AVAILABLE:
             print(f"⚠ Found {len(log_files)} existing log files in {self.logs_dir}/")
             print("  To clean them manually, delete files from that directory.")
+            # Still create init.log
+            self.clean_logs()
             return True
         
         root = tk.Tk()
-        root.withdraw()  # Hide the root window
+        root.withdraw()
         
-        # Show dialog
         response = messagebox.askyesno(
             "Clean Log Files",
             f"Found {len(log_files)} existing log files in:\n{self.logs_dir}/\n\n"
@@ -70,15 +77,16 @@ class LogManager:
         
         if response:
             cleaned_count = self.clean_logs()
-            
-            # Show confirmation
             root = tk.Tk()
             root.withdraw()
             messagebox.showinfo(
                 "Log Files Cleaned",
-                f"Successfully cleaned {cleaned_count} log files."
+                f"Successfully cleaned {cleaned_count} log files and created init.log."
             )
             root.destroy()
+        else:
+            # Even if user says no, still ensure init.log exists
+            self.clean_logs()
         
         return True
     
@@ -88,7 +96,9 @@ class LogManager:
         log_files = self.get_existing_logs()
         
         if not log_files:
-            return True  # No logs to clean
+            # No logs, but still create init.log
+            self.clean_logs()
+            return True
         
         print(f"⚠ Found {len(log_files)} existing log files in {self.logs_dir}/")
         
@@ -96,6 +106,9 @@ class LogManager:
         
         if response in ['yes', 'y']:
             cleaned_count = self.clean_logs()
-            print(f"✅ Successfully cleaned {cleaned_count} log files.")
+            print(f"✅ Successfully cleaned {cleaned_count} log files and created init.log.")
+        else:
+            # Even if user says no, still ensure init.log exists
+            self.clean_logs()
         
         return True

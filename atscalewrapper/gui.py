@@ -174,11 +174,311 @@ class AtScaleGatlingGUI:
                             "Please check your configuration and network connectivity.")
         except Exception as e:
             self.log_activity(f"⚠️ Certificate check error: {e}")
+
+
+    # Add this class at the end of gui.py, before the closing brace:
+    class RuntimeConfigWindow:
+        """Window for configuring runtime simulation settings"""
+        
+        def __init__(self, parent, core):
+            self.parent = parent
+            self.core = core
+            self.window = tk.Toplevel(parent)
+            self.window.title("Runtime Configuration")
+            self.window.geometry("800x600")
             
+            # Make window modal
+            self.window.transient(parent)
+            self.window.grab_set()
+            
+            # Set up the GUI
+            self.setup_gui()
+            
+            # Load existing config if available
+            self.load_config()
+            
+            # Center window
+            self.center_window()
+            
+        def setup_gui(self):
+            """Set up the runtime configuration GUI"""
+            # Main container with scroll
+            main_frame = tk.Frame(self.window, padx=10, pady=10)
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            
+            # Title
+            tk.Label(main_frame, text="Runtime Simulation Configuration", 
+                    font=("Arial", 14, "bold")).pack(anchor=tk.W, pady=(0, 10))
+            
+            tk.Label(main_frame, text="Configure injection steps for each simulation executor:", 
+                    font=("Arial", 10)).pack(anchor=tk.W, pady=(0, 20))
+            
+            # Create notebook for tabs
+            notebook = ttk.Notebook(main_frame)
+            notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+            
+            # Create tabs for each executor type
+            self.executor_frames = {}
+            self.entries = {}
+            
+            # Default configurations for each executor type
+            self.default_configs = {
+                "ClosedStepSequentialSimulationExecutor": {
+                    "title": "Closed Step - Sequential",
+                    "step_type": "ConstantConcurrentUsersClosedInjectionStep",
+                    "fields": [
+                        {"name": "users", "label": "Number of Users", "type": "int", "default": 10},
+                        {"name": "durationSeconds", "label": "Duration (seconds)", "type": "int", "default": 60}
+                    ]
+                },
+                "OpenStepSequentialSimulationExecutor": {
+                    "title": "Open Step - Sequential",
+                    "step_type": "AtOnceUsersOpenInjectionStep",
+                    "fields": [
+                        {"name": "users", "label": "Number of Users", "type": "int", "default": 20}
+                    ]
+                },
+                "ClosedStepConcurrentSimulationExecutor": {
+                    "title": "Closed Step - Concurrent",
+                    "step_type": "ConstantConcurrentUsersClosedInjectionStep",
+                    "fields": [
+                        {"name": "users", "label": "Number of Users", "type": "int", "default": 15},
+                        {"name": "durationSeconds", "label": "Duration (seconds)", "type": "int", "default": 45}
+                    ]
+                },
+                "OpenStepConcurrentSimulationExecutor": {
+                    "title": "Open Step - Concurrent",
+                    "step_type": "AtOnceUsersOpenInjectionStep",
+                    "fields": [
+                        {"name": "users", "label": "Number of Users", "type": "int", "default": 25}
+                    ]
+                }
+            }
+            
+            for executor, config in self.default_configs.items():
+                # Create frame for this executor
+                frame = tk.Frame(notebook, padx=10, pady=10)
+                notebook.add(frame, text=config["title"])
+                self.executor_frames[executor] = frame
+                
+                # Store step type
+                self.entries[executor] = {"type": config["step_type"]}
+                
+                # Add fields
+                tk.Label(frame, text=f"{config['title']} Configuration", 
+                        font=("Arial", 12, "bold")).pack(anchor=tk.W, pady=(0, 15))
+                
+                tk.Label(frame, text=f"Injection Step Type: {config['step_type']}", 
+                        font=("Arial", 10)).pack(anchor=tk.W, pady=(0, 10))
+                
+                # Create entry fields
+                for field in config["fields"]:
+                    field_frame = tk.Frame(frame)
+                    field_frame.pack(fill=tk.X, pady=5)
+                    
+                    tk.Label(field_frame, text=f"{field['label']}:", 
+                            width=25, anchor=tk.W).pack(side=tk.LEFT)
+                    
+                    var = tk.StringVar(value=str(field["default"]))
+                    entry = tk.Entry(field_frame, textvariable=var, width=15)
+                    entry.pack(side=tk.LEFT)
+                    
+                    self.entries[executor][field["name"]] = var
+            
+            # Buttons frame
+            button_frame = tk.Frame(main_frame)
+            button_frame.pack(fill=tk.X, pady=10)
+            
+            # Save button
+            tk.Button(button_frame, text="Save Configuration", 
+                    command=self.save_config,
+                    bg="#FBFEFB", fg='black', font=("Arial", 10, "bold"),
+                    width=20).pack(side=tk.LEFT, padx=5)
+            
+            # Cancel button
+            tk.Button(button_frame, text="Cancel", 
+                    command=self.window.destroy,
+                    bg="#f9f7f7", fg='black', font=("Arial", 10),
+                    width=20).pack(side=tk.LEFT, padx=5)
+            
+            # Reset to defaults button
+            tk.Button(button_frame, text="Reset to Defaults", 
+                    command=self.reset_to_defaults,
+                    bg='#FF9800', fg='black', font=("Arial", 10),
+                    width=20).pack(side=tk.LEFT, padx=5)
+            
+            # Info label
+            self.info_label = tk.Label(main_frame, text="", fg='blue')
+            self.info_label.pack(anchor=tk.W, pady=5)
+        
+        def load_config(self):
+            """Load existing runtime configuration"""
+            import json
+            import os
+            
+            runtime_file = os.path.join("working_dir", "config", "runtime.json")
+            
+            # Check if file exists
+            if not os.path.exists(runtime_file):
+                self.info_label.config(
+                    text="No existing runtime configuration found. Using default values.", 
+                    fg='orange'
+                )
+                return
+            
+            # File exists, try to load it
+            try:
+                with open(runtime_file, 'r') as f:
+                    config_data = json.load(f)
+                
+                # Update UI with loaded values
+                loaded_entries = 0
+                for executor, settings in config_data.items():
+                    if executor in self.entries:
+                        injection_steps = settings.get("injectionSteps", [{}])
+                        if injection_steps:
+                            step = injection_steps[0]
+                            for key, var in self.entries[executor].items():
+                                if key != "type" and key in step:
+                                    var.set(str(step[key]))
+                                    loaded_entries += 1
+                
+                if loaded_entries > 0:
+                    self.info_label.config(
+                        text=f"✅ Loaded existing configuration from {runtime_file}", 
+                        fg='green'
+                    )
+                else:
+                    self.info_label.config(
+                        text="⚠️ Configuration file exists but contains no matching data", 
+                        fg='orange'
+                    )
+                    
+            except json.JSONDecodeError as e:
+                self.info_label.config(
+                    text=f"❌ Error: Invalid JSON in {runtime_file}: {e}", 
+                    fg='red'
+                )
+            except Exception as e:
+                self.info_label.config(
+                    text=f"❌ Error loading configuration: {e}", 
+                    fg='red'
+                )
+        
+        def save_config(self):
+            """Save runtime configuration to file"""
+            import json
+            import os
+            
+            # Build configuration structure
+            config_data = {}
+            
+            # Validate all inputs before saving
+            for executor, entries in self.entries.items():
+                # Create injection step based on type
+                step = {"type": entries["type"]}
+                
+                # Add other fields
+                for key, var in entries.items():
+                    if key != "type":
+                        value_str = var.get().strip()
+                        if not value_str:
+                            self.info_label.config(
+                                text=f"❌ Error: {key} in {executor} cannot be empty", 
+                                fg='red'
+                            )
+                            return
+                        
+                        try:
+                            # Convert to appropriate type
+                            if key == "users" or key == "durationSeconds":
+                                value = int(value_str)
+                                if value <= 0:
+                                    raise ValueError("must be positive")
+                            else:
+                                value = value_str
+                            step[key] = value
+                        except ValueError as e:
+                            self.info_label.config(
+                                text=f"❌ Error: {key} in {executor} must be a positive integer", 
+                                fg='red'
+                            )
+                            return
+                
+                config_data[executor] = {
+                    "injectionSteps": [step]
+                }
+            
+            # Create directory if it doesn't exist
+            config_dir = os.path.join("working_dir", "config")
+            try:
+                os.makedirs(config_dir, exist_ok=True)
+            except Exception as e:
+                self.info_label.config(
+                    text=f"❌ Error creating directory {config_dir}: {e}", 
+                    fg='red'
+                )
+                return
+            
+            # Save to file
+            runtime_file = os.path.join(config_dir, "runtime.json")
+            
+            try:
+                with open(runtime_file, 'w') as f:
+                    json.dump(config_data, f, indent=2)
+                
+                self.info_label.config(
+                    text=f"✅ Configuration saved to {runtime_file}", 
+                    fg='green'
+                )
+                
+                # Close window after 2 seconds if save was successful
+                self.window.after(2000, self.window.destroy)
+                
+            except PermissionError:
+                self.info_label.config(
+                    text=f"❌ Error: Permission denied. Cannot write to {runtime_file}", 
+                    fg='red'
+                )
+            except Exception as e:
+                self.info_label.config(
+                    text=f"❌ Error saving configuration: {e}", 
+                    fg='red'
+                )
+        
+        def reset_to_defaults(self):
+            """Reset all fields to default values"""
+            for executor, config in self.default_configs.items():
+                for field in config["fields"]:
+                    field_name = field["name"]
+                    default_value = str(field["default"])
+                    if field_name in self.entries[executor]:
+                        self.entries[executor][field_name].set(default_value)
+            
+            self.info_label.config(
+                text="Reset all fields to default values", 
+                fg='blue'
+            )
+        
+        def center_window(self):
+            """Center the window on screen"""
+            self.window.update_idletasks()
+            width = self.window.winfo_width()
+            height = self.window.winfo_height()
+            x = (self.window.winfo_screenwidth() // 2) - (width // 2)
+            y = (self.window.winfo_screenheight() // 2) - (height // 2)
+            self.window.geometry(f'{width}x{height}+{x}+{y}')
+            
+            
+    def open_runtime_config(self):
+        """Open runtime configuration window"""
+        self.RuntimeConfigWindow(self.root, self.core)            
+
+    # In the setup_executor_selection_frame method, add the Runtime Config button:
     def setup_executor_selection_frame(self, parent):
         """Right panel: Executor selection and controls"""
         frame = tk.LabelFrame(parent, text="Simulation Executors", 
-                             font=('Arial', 12, 'bold'), padx=10, pady=10)
+                            font=('Arial', 12, 'bold'), padx=10, pady=10)
         frame.pack(fill=tk.BOTH, expand=True)
         
         # Instructions
@@ -190,8 +490,8 @@ class AtScaleGatlingGUI:
         list_frame.pack(fill=tk.BOTH, expand=True, pady=5)
         
         self.executor_listbox = tk.Listbox(list_frame, font=('Arial', 10), 
-                                          height=12, exportselection=False, 
-                                          selectmode=tk.SINGLE)
+                                        height=12, exportselection=False, 
+                                        selectmode=tk.SINGLE)
         self.executor_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         scrollbar = tk.Scrollbar(list_frame)
@@ -216,9 +516,9 @@ class AtScaleGatlingGUI:
         
         # Stop button - red background, white text
         self.stop_button = tk.Button(button_frame, text="Stop Running Simulation", 
-                                   command=self.stop_running_simulation,
-                                   bg='#F44336', fg='white', font=('Arial', 11, 'bold'),
-                                   height=2, width=20)
+                                command=self.stop_running_simulation,
+                                bg='#F44336', fg='white', font=('Arial', 11, 'bold'),
+                                height=2, width=20)
         self.stop_button.pack(side=tk.LEFT, padx=5)
         self.stop_button.config(state=tk.DISABLED)
         
@@ -233,16 +533,21 @@ class AtScaleGatlingGUI:
         stop_button_frame.pack(fill=tk.X, pady=5)
         
         tk.Button(stop_button_frame, text="Send Stop Signal to All", 
-                 command=self.create_stop_signal,
-                 bg='#FF9800', fg='black', font=('Arial', 9)).pack(side=tk.LEFT, padx=2)
+                command=self.create_stop_signal,
+                bg='#FF9800', fg='black', font=('Arial', 9)).pack(side=tk.LEFT, padx=2)
         
         tk.Button(stop_button_frame, text="Cancel Stop Signal", 
-                 command=self.cancel_stop_signal,
-                 bg='#9E9E9E', fg='black', font=('Arial', 9)).pack(side=tk.LEFT, padx=2)
+                command=self.cancel_stop_signal,
+                bg='#9E9E9E', fg='black', font=('Arial', 9)).pack(side=tk.LEFT, padx=2)
+        
+        # NEW: Runtime Config button (green with white text)
+        tk.Button(stop_button_frame, text="Runtime Config", 
+                command=self.open_runtime_config,
+                bg="#F6FAF6", fg='black', font=('Arial', 9)).pack(side=tk.LEFT, padx=2)
         
         # Status
         self.status_label = tk.Label(frame, text="Status: Ready", relief=tk.SUNKEN, bd=1, 
-                                   font=('Arial', 10), bg='#E8F5E8')
+                                font=('Arial', 10), bg='#E8F5E8')
         self.status_label.pack(fill=tk.X, pady=5)
         
     def setup_log_frame(self, parent):

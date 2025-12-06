@@ -2,19 +2,6 @@
 
 echo "🚀 Publishing AtScale Gatling Docker image..."
 
-# Check if root.crt exists
-if [ ! -f "root.crt" ]; then
-    echo "⚠ Warning: root.crt file not found in current directory."
-    echo "  The Docker image will be built without the PostgreSQL SSL certificate."
-    echo "  If you need SSL connectivity to PostgreSQL, place root.crt in this directory."
-    read -p "Continue without root.crt? (yes/no): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "❌ Aborting build."
-        exit 1
-    fi
-fi
-
 # Build the JAR first
 echo "Step 1: Building JAR..."
 ./mvnw clean package -DskipExec
