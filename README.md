@@ -11,6 +11,9 @@ Key features:
 - Built-in executors for extract, simulation, and archive workflows
 - Open and closed workload models (arrival-rate and concurrent-user)
 - Docker-friendly with helper scripts and optional truststore support
+- Pre-built binary executable for macOS (`dist/main`)
+- Multi-host support: extract queries from one host, run simulations on another
+- Editable runtime configuration: modify simulation parameters and injection steps on the fly
 
 📦 Features
 
@@ -104,6 +107,23 @@ Additional runtime files often required:
 
 🚀 Running the Application
 
+**Binary Executable (macOS)**
+
+A pre-built binary is available at `dist/main`. Run directly without Python:
+
+```
+./dist/main
+```
+
+Or with arguments:
+
+```
+./dist/main --mode gui
+./dist/main --mode cli --executor CustomQueryExtractExecutor
+```
+
+**Python**
+
 Local – Auto mode:
 
 ```
@@ -179,19 +199,26 @@ If `config.json` is missing, the system will generate a default one on startup. 
 
 **Multi-Host Query Extraction & Simulation**
 
-You can extract queries from one host and run simulations against another. Update `systems.properties` endpoints as needed:
+You can extract queries from one host and run simulations against another host by editing `config.json` between runs:
 
-```properties
-# Extract from host A
-query.extraction.jdbc.url=jdbc:postgresql://host-a:5432/database
-query.extraction.jdbc.user=user
-query.extraction.jdbc.password=pass
+1. **Extract phase:** Configure `config.json` with extraction host endpoints and run the extract executor
+2. **Edit phase:** Update `config.json` with simulation host endpoints
+3. **Simulate phase:** Run the simulation executor against the new host
 
-# Run simulation against host B
-simulation.jdbc.url=jdbc:postgresql://host-b:5432/database
-simulation.jdbc.user=user
-simulation.jdbc.password=pass
+All configuration changes can also be made directly in the GUI (`--mode gui`) without manually editing `config.json`.
+
+Example workflow:
+
+```bash
+# Extract queries from host A (config.json points to host-a)
+./dist/main --mode cli --executor CustomQueryExtractExecutor
+
+# Edit config.json to point to host B, then run simulation
+# (Update JDBC/HTTP/XMLA endpoints in config.json)
+./dist/main --mode cli --executor OpenStepConcurrentSimulationExecutor
 ```
+
+Or use GUI mode to interactively switch between hosts and configure parameters on the fly.
 
 **Customizing Simulation Configuration per Executor**
 
