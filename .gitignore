@@ -8,7 +8,8 @@ venv/
 .env/
 
 target/*
-target/analysis/*
+target/analysis/compile
+
 # OS-specific junk
 .DS_Store
 Thumbs.db
@@ -28,3 +29,4 @@ working_dir/
 # Ignore Java build artifacts
 *.class
 *.jar
+root.crt

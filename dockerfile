@@ -28,6 +28,13 @@ COPY settings.xml /app/
 RUN mkdir -p working_dir/config working_dir/run_logs working_dir/app_logs working_dir/queries working_dir/control working_dir/ingest
 COPY example_systems.properties working_dir/config/systems.properties
 
+# Create PostgreSQL certificate directory and copy root.crt
+RUN mkdir -p /root/.postgresql
+COPY root.crt /root/.postgresql/root.crt
+
+# Set appropriate permissions (optional, depends on your security needs)
+RUN chmod 644 /root/.postgresql/root.crt
+
 # Install Hive JDBC driver (optional - uncomment if needed)
 # RUN mvn install:install-file \
 #   -Dfile=lib/hive-jdbc-uber-2.6.3.0-235.jar \

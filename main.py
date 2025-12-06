@@ -6,6 +6,7 @@ Supports GUI mode and CLI mode.
 
 import sys
 import os
+import glob
 import argparse
 
 from atscalewrapper.cli import run_cli_mode, create_cli_parser
@@ -79,6 +80,93 @@ def check_dependencies():
         return False
 
 
+def check_and_clean_logs_gui():
+    """Check for existing log files and ask user if they want to clean them up (GUI mode)."""
+    logs_dir = "working_dir/run_logs"
+    
+    # Create directory if it doesn't exist
+    os.makedirs(logs_dir, exist_ok=True)
+    
+    # Check for .log files
+    log_files = glob.glob(os.path.join(logs_dir, "*.log"))
+    
+    if not log_files:
+        return True  # No logs to clean
+    
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+    except ImportError:
+        # If GUI dependencies aren't available, just print a message
+        print(f"⚠ Found {len(log_files)} existing log files in {logs_dir}/")
+        print("  To clean them manually, delete files from that directory.")
+        return True
+    
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    
+    # Show dialog
+    response = messagebox.askyesno(
+        "Clean Log Files",
+        f"Found {len(log_files)} existing log files in:\n{logs_dir}/\n\n"
+        "Do you want to clean them up before starting?",
+        icon=messagebox.QUESTION
+    )
+    
+    root.destroy()
+    
+    if response:
+        cleaned_count = 0
+        for log_file in log_files:
+            try:
+                os.remove(log_file)
+                cleaned_count += 1
+            except Exception as e:
+                print(f"❌ Failed to delete {log_file}: {e}")
+        
+        # Show confirmation
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showinfo(
+            "Log Files Cleaned",
+            f"Successfully cleaned {cleaned_count} log files."
+        )
+        root.destroy()
+    
+    return True
+
+
+def check_and_clean_logs_cli():
+    """Check for existing log files and ask user if they want to clean them up (CLI mode)."""
+    logs_dir = "working_dir/run_logs"
+    
+    # Create directory if it doesn't exist
+    os.makedirs(logs_dir, exist_ok=True)
+    
+    # Check for .log files
+    log_files = glob.glob(os.path.join(logs_dir, "*.log"))
+    
+    if not log_files:
+        return True  # No logs to clean
+    
+    print(f"⚠ Found {len(log_files)} existing log files in {logs_dir}/")
+    
+    response = input("Do you want to clean them up before starting? (yes/no): ").strip().lower()
+    
+    if response in ['yes', 'y']:
+        cleaned_count = 0
+        for log_file in log_files:
+            try:
+                os.remove(log_file)
+                cleaned_count += 1
+            except Exception as e:
+                print(f"❌ Failed to delete {log_file}: {e}")
+        
+        print(f"✅ Successfully cleaned {cleaned_count} log files.")
+    
+    return True
+
+
 def run_gui_mode():
     """Start Tkinter GUI if display is available."""
     # Basic display check for Linux/X11 environments
@@ -93,6 +181,9 @@ def run_gui_mode():
         print(f"❌ Failed to load GUI modules: {e}")
         print("Try running CLI mode instead: --mode cli")
         return 1
+    
+    # Check and clean logs before starting GUI
+    check_and_clean_logs_gui()
 
     root = tk.Tk()
     app = AtScaleGatlingGUI(root)
@@ -119,6 +210,9 @@ def main():
     args, remaining = parser.parse_known_args()
 
     if args.mode == "cli":
+        # Check and clean logs for CLI mode
+        check_and_clean_logs_cli()
+        
         cli_parser = create_cli_parser()
         cli_args = cli_parser.parse_args(remaining)
         return run_cli_mode(cli_args)

@@ -10,8 +10,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,9 +28,11 @@ public class ArchiveXmlaToSnowflakeExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(ArchiveXmlaToSnowflakeExecutor.class);
     private static final String STAGE = "XMLA_LOGS_STAGE";
     private static final String RAW_TABLE = "GATLING_RAW_XMLA_LOGS";
-    private static final String RUN_LOGS_DIR = "working_dir/run_logs";
+    private static final String WORKING_DIR = "working_dir";
+    private static final String RUN_LOGS_DIR = WORKING_DIR + "/run_logs";
+    private static final String CONFIG_DIR = WORKING_DIR + "/config";
+    private static final String SYSTEMS_PROPERTIES = CONFIG_DIR + "/systems.properties";
 
-    // Static block to load Snowflake driver - FIXED: added missing closing brace
     static {
         try {
             Class.forName("net.snowflake.client.jdbc.SnowflakeDriver");
@@ -35,11 +41,14 @@ public class ArchiveXmlaToSnowflakeExecutor {
             LOGGER.error("Failed to load Snowflake JDBC driver: {}", e.getMessage());
             throw new RuntimeException("Snowflake JDBC driver not found. Make sure snowflake-jdbc dependency is included in pom.xml", e);
         }
-    } // <-- THIS WAS MISSING
+    }
 
     public static void main(String[] args) {
         LOGGER.info("ArchiveXmlaToSnowflakeExecutor started.");
         try {
+            // Initialize properties from systems.properties FIRST
+            loadSystemsProperties();
+            
             ArchiveXmlaToSnowflakeExecutor executor = new ArchiveXmlaToSnowflakeExecutor();
             executor.initAdditionalProperties();
             executor.execute();
@@ -56,31 +65,47 @@ public class ArchiveXmlaToSnowflakeExecutor {
         org.apache.logging.log4j.LogManager.shutdown();
     }
 
-    protected void execute() {
-        // Get models from systems.properties using the correct public method
-
-        // Verify driver is loaded (it should already be from static block)
+    private static void loadSystemsProperties() {
         try {
-            Class.forName("net.snowflake.client.jdbc.SnowflakeDriver");
-            LOGGER.info("Snowflake JDBC driver verified");
-        } catch (ClassNotFoundException e) {
-            LOGGER.error("Snowflake JDBC driver not found. Check dependencies.");
-            LOGGER.error("Run: mvn dependency:tree | grep snowflake");
-            throw new RuntimeException("Snowflake JDBC driver not found", e);
+            Path propertiesPath = Paths.get(SYSTEMS_PROPERTIES);
+            if (Files.exists(propertiesPath)) {
+                LOGGER.info("Loading properties from: {}", propertiesPath.toAbsolutePath());
+                Properties properties = new Properties();
+                try (java.io.FileInputStream fis = new java.io.FileInputStream(propertiesPath.toFile())) {
+                    properties.load(fis);
+                }
+                
+                // Convert Properties to Map for PropertiesManager
+                Map<String, String> propsMap = new HashMap<>();
+                for (String key : properties.stringPropertyNames()) {
+                    propsMap.put(key, properties.getProperty(key));
+                }
+                
+                // Set properties in PropertiesManager
+                PropertiesManager.setCustomProperties(propsMap);
+                LOGGER.info("Successfully loaded systems.properties with {} properties", propsMap.size());
+            } else {
+                LOGGER.warn("Properties file not found: {}", propertiesPath.toAbsolutePath());
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to load systems.properties", e);
         }
+    }
 
-        List<String> models = PropertiesManager.getAtScaleModels();
-        if (models.isEmpty()) {
-            LOGGER.warn("No models found in systems.properties. Nothing to archive.");
+    protected void execute() {
+        // Get ALL cube names from systems.properties
+        List<String> cubeNames = getAllCubeNamesFromProperties();
+        if (cubeNames.isEmpty()) {
+            LOGGER.warn("No cubes found in systems.properties. Nothing to archive.");
             return;
         }
         
-        LOGGER.info("Found {} models in systems.properties: {}", models.size(), models);
+        LOGGER.info("Found {} cubes in systems.properties: {}", cubeNames.size(), cubeNames);
         
-        // Find all XMLA log files for these models
-        List<Path> xmlaLogFiles = findXmlaLogFiles(models);
+        // Find XMLA log files for these cubes
+        List<Path> xmlaLogFiles = findXmlaLogFiles(cubeNames);
         if (xmlaLogFiles.isEmpty()) {
-            LOGGER.warn("No XMLA log files found for models. Nothing to archive.");
+            LOGGER.warn("No XMLA log files found for cubes. Nothing to archive.");
             return;
         }
         
@@ -97,9 +122,9 @@ public class ArchiveXmlaToSnowflakeExecutor {
             createIfNotExistsObjects(conn);
             conn.commit();
 
-            // Process each log file
+            // Process each XMLA log file
             for (Path dataFile : xmlaLogFiles) {
-                processLogFile(conn, dataFile);
+                processXmlaLogFile(conn, dataFile);
             }
 
             LOGGER.info("✅ All XMLA log files archived successfully.");
@@ -108,55 +133,117 @@ public class ArchiveXmlaToSnowflakeExecutor {
         }
     }
 
-    private List<Path> findXmlaLogFiles(List<String> models) {
-        List<Path> logFiles = new ArrayList<>();
+    private List<String> getAllCubeNamesFromProperties() {
+        Set<String> cubeNames = new HashSet<>();
+        try {
+            // Load properties directly from systems.properties
+            Path propertiesPath = Paths.get(SYSTEMS_PROPERTIES);
+            if (Files.exists(propertiesPath)) {
+                Properties properties = new Properties();
+                try (java.io.FileInputStream fis = new java.io.FileInputStream(propertiesPath.toFile())) {
+                    properties.load(fis);
+                    
+                    // Look for cube properties like in the simulation executor
+                    for (String propertyName : properties.stringPropertyNames()) {
+                        if (propertyName.startsWith("atscale.") && propertyName.contains(".xmla.cube")) {
+                            String cubeIdentifier = propertyName.substring("atscale.".length(), propertyName.indexOf(".xmla.cube"));
+                            String cubeName = properties.getProperty(propertyName);
+                            if (cubeName != null && !cubeName.trim().isEmpty()) {
+                                cubeNames.add(cubeName.trim());
+                                LOGGER.debug("Found cube '{}' from property '{}'", cubeName, propertyName);
+                            }
+                        }
+                    }
+                    
+                    // Fallback to models property if no specific cubes found
+                    if (cubeNames.isEmpty()) {
+                        String models = properties.getProperty("atscale.models");
+                        if (models != null && !models.trim().isEmpty()) {
+                            String[] modelList = models.split(",");
+                            for (String model : modelList) {
+                                String trimmedModel = model.trim();
+                                if (!trimmedModel.isEmpty()) {
+                                    cubeNames.add(trimmedModel);
+                                    LOGGER.debug("Found cube '{}' from atscale.models", trimmedModel);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error reading cube names from properties", e);
+        }
+        
+        LOGGER.info("Retrieved {} cube names from properties", cubeNames.size());
+        return new ArrayList<>(cubeNames);
+    }
+
+    private List<Path> findXmlaLogFiles(List<String> cubeNames) {
+        List<Path> xmlaLogFiles = new ArrayList<>();
         Path runLogsDir = Paths.get(RUN_LOGS_DIR);
         
         if (!Files.exists(runLogsDir) || !Files.isDirectory(runLogsDir)) {
             LOGGER.warn("Run logs directory does not exist: {}", RUN_LOGS_DIR);
-            return logFiles;
+            return xmlaLogFiles;
         }
 
         try {
-            // Look for XMLA log files for each model
-            for (String model : models) {
-                // Model might have spaces, replace with underscores for filename
-                String safeModelName = model.replace(" ", "_");
+            // Look for XMLA log files for each cube
+            for (String cubeName : cubeNames) {
+                // ONLY replace spaces with underscores, keep dashes as-is
+                String sanitizedCubeName = cubeName.replace(" ", "_");
                 
-                // Pattern: <model>_xmla_open.log
-                String xmlaLogPattern = safeModelName + "_xmla_open.log";
-                Path xmlaLogFile = runLogsDir.resolve(xmlaLogPattern);
+                LOGGER.debug("Looking for XMLA log files for cube: {} (sanitized: {})", cubeName, sanitizedCubeName);
                 
-                if (Files.exists(xmlaLogFile)) {
-                    logFiles.add(xmlaLogFile);
-                    LOGGER.info("Found XMLA log file for model '{}': {}", model, xmlaLogFile);
-                } else {
-                    LOGGER.info("XMLA log file not found for model '{}': {}", model, xmlaLogFile);
+                // Look for files that match the pattern: <sanitized_cube>_xmla*.log
+                try (var stream = Files.list(runLogsDir)) {
+                    stream.filter(Files::isRegularFile)
+                        .filter(path -> {
+                            String fileName = path.getFileName().toString();
+                            // Look for files starting with sanitized cube name, containing _xmla, ending with .log
+                            return fileName.startsWith(sanitizedCubeName + "_") && 
+                                    fileName.contains("_xmla") &&
+                                    fileName.endsWith(".log");
+                        })
+                        .forEach(xmlaLogFile -> {
+                            xmlaLogFiles.add(xmlaLogFile);
+                            LOGGER.info("Found XMLA log file for cube '{}': {}", cubeName, xmlaLogFile.getFileName());
+                        });
                 }
             }
 
-            // Also look for any other XMLA log files that might not follow the exact pattern
+            // Also look for any XMLA log files that might have different naming patterns
+            LOGGER.debug("Looking for additional XMLA log files with broader pattern...");
             try (var stream = Files.list(runLogsDir)) {
                 stream.filter(Files::isRegularFile)
-                      .filter(path -> path.getFileName().toString().contains("_xmla_"))
-                      .filter(path -> path.getFileName().toString().endsWith(".log"))
-                      .filter(path -> !logFiles.contains(path))
-                      .forEach(logFiles::add);
+                    .filter(path -> {
+                        String fileName = path.getFileName().toString();
+                        // Look for files containing "_xmla_" and ".log"
+                        return fileName.contains("_xmla_") && 
+                                fileName.endsWith(".log") &&
+                                !xmlaLogFiles.contains(path);
+                    })
+                    .forEach(xmlaLogFile -> {
+                        xmlaLogFiles.add(xmlaLogFile);
+                        LOGGER.info("Found additional XMLA log file: {}", xmlaLogFile.getFileName());
+                    });
             }
 
         } catch (Exception e) {
             LOGGER.error("Error searching for XMLA log files", e);
         }
 
-        return logFiles;
+        LOGGER.info("Total XMLA log files found: {}", xmlaLogFiles.size());
+        return xmlaLogFiles;
     }
 
-    private void processLogFile(Connection conn, Path dataFile) {
+    private void processXmlaLogFile(Connection conn, Path dataFile) {
         LOGGER.info("Processing XMLA log file: {}", dataFile);
         
         try {
             List<String> runIds = RunLogUtils.extractGatlingRunIds(dataFile);
-            LOGGER.info("Found {} unique XMLA RUN IDs in log file {}:: {}", runIds.size(), dataFile, runIds);
+            LOGGER.info("Found {} unique RUN IDs in XMLA log file {}: {}", runIds.size(), dataFile, runIds);
 
             boolean originalAutoCommit = conn.getAutoCommit();
 
@@ -166,7 +253,7 @@ public class ArchiveXmlaToSnowflakeExecutor {
 
             try {
                 try {
-                    // 0) Ensure required objects exist. DDL may be best committed separately.
+                    // 0) Ensure required objects exist
                     createIfNotExistsObjects(conn);
                     conn.commit();
                 } catch (SQLException e) {
@@ -178,7 +265,7 @@ public class ArchiveXmlaToSnowflakeExecutor {
                 exec(conn, "PUT '" + fileUri + "' @" + STAGE + " AUTO_COMPRESS=TRUE OVERWRITE=TRUE");
                 LOGGER.info("Uploaded file {} to stage {} as {}", fileUri, STAGE, stagedFileName);
 
-                // Begin DML transaction: COPY + INSERTs should be atomic together
+                // Begin DML transaction
                 conn.setAutoCommit(false);
 
                 // 2) Clean up any prior data for the same run IDs (idempotency step)
@@ -203,7 +290,6 @@ public class ArchiveXmlaToSnowflakeExecutor {
                 }
 
                 // 3) COPY into RAW table (fail the whole transaction on any load error)
-                // This part cannot be made idempotent
                 exec(conn, getCopyIntoRawSql(stagedFileName));
                 LOGGER.info("Copied data from stage {} into table {}", STAGE, RAW_TABLE);
                 conn.commit();
@@ -314,7 +400,6 @@ public class ArchiveXmlaToSnowflakeExecutor {
             );
             """);
 
-        // Replaced XMLA_QUERIES with GATLING_XMLA_HEADERS (breakout a=b pairs into columns)
         exec(conn, """
             CREATE TABLE IF NOT EXISTS GATLING_XMLA_HEADERS CLUSTER BY (GATLING_RUN_ID) (
               RUN_KEY NUMBER(19,0),
@@ -384,11 +469,9 @@ public class ArchiveXmlaToSnowflakeExecutor {
             """;
     }
 
-    /** Server-side SQL to extract key\=value pairs from RAW_SOAP and insert one row per gatlingRunId. */
     private static String getInsertIntoHeadersSql() {
-    return """
+        return """
             INSERT INTO GATLING_XMLA_HEADERS (
-                    -- List all destination columns explicitly
                     RUN_KEY,
                     TS,
                     LEVEL,
@@ -408,21 +491,12 @@ public class ArchiveXmlaToSnowflakeExecutor {
                     RESPONSE_SIZE,
                     RAW_SOAP
                 )
-                -- Start of the Common Table Expression definition
                 WITH ParsedData AS (
                     SELECT
-                        /* ts */
                         to_timestamp_ntz(regexp_substr(raw_soap, '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}')) AS TS,
-            
-                        /* level */
                         regexp_substr(raw_soap, '^[^ ]+ [^ ]+ ([A-Z]+)', 1, 1, 'e', 1) AS LEVEL,
-            
-                        /* logger (single cleaned value) */
                         regexp_replace(regexp_substr(raw_soap, ' [A-Za-z0-9_\\\\\\\\\\\\\\\\.]+:', 1, 1), '[: ]', '') AS LOGGER,
-            
-                        /* message_kind */
                         regexp_substr(raw_soap, '- ([A-Za-z0-9_]+)', 1, 1, 'e', 1) AS MESSAGE_KIND,
-            
                         regexp_substr(raw_soap, 'gatlingRunId=\\'([^\\']+)\\'', 1, 1, 'e', 1) AS GATLING_RUN_ID,
                         regexp_substr(raw_soap, 'status=\\'([^\\']+)\\'', 1, 1, 'e', 1) AS STATUS,
                         regexp_substr(raw_soap, 'gatlingSessionId=([^\\\\s]+)', 1, 1, 'e', 1) AS GATLING_SESSION_ID,
@@ -431,13 +505,11 @@ public class ArchiveXmlaToSnowflakeExecutor {
                         regexp_substr(raw_soap, 'catalog=\\'([^\\']+)\\'', 1, 1, 'e', 1) AS CATALOG,
                         regexp_substr(raw_soap, 'queryName=\\'([^\\']+)\\'', 1, 1, 'e', 1) AS QUERY_NAME,
                         regexp_substr(raw_soap, 'atscaleQueryId=\\'([^\\']+)\\'', 1, 1, 'e', 1) AS ATSCALE_QUERY_ID,
-                         -- Extract inboundTextAsHash value
                         regexp_substr(raw_soap, 'inboundTextAsHash=\\'([^\\']+)\\'', 1, 1, 'e', 1) AS QUERY_HASH,
                         regexp_substr(raw_soap, 'start=([^\\\\s]+)', 1, 1, 'e', 1) AS START_MS,
                         regexp_substr(raw_soap, 'end=([^\\\\s]+)', 1, 1, 'e', 1) AS END_MS,
                         regexp_substr(raw_soap, 'duration=([^\\\\s]+)', 1, 1, 'e', 1) AS DURATION_MS,
                         regexp_substr(raw_soap, 'responseSize=([^\\\\s]+)', 1, 1, 'e', 1) AS RESPONSE_SIZE,
-                         -- Extract the full XML content starting from '<soap:Envelope'
                         regexp_substr(raw_soap, '<soap:Envelope.*</soap:Envelope>', 1, 1, 's') AS RAW_SOAP
                     FROM
                         GATLING_RAW_XMLA_LOGS AS UPLOAD
@@ -449,9 +521,7 @@ public class ArchiveXmlaToSnowflakeExecutor {
                             limit 1
                         )
                 )
-                -- Final SELECT statement to insert data
                 SELECT
-                    /* stable key built from your join columns using the HASH function */
                     HASH(GATLING_RUN_ID, GATLING_SESSION_ID, MODEL, QUERY_HASH) AS RUN_KEY,
                     TS,
                     LEVEL,
@@ -477,10 +547,8 @@ public class ArchiveXmlaToSnowflakeExecutor {
             """;
     }
 
-    /** Insert a single response per query: pick first response row per query using ROW_NUMBER() */
     private static String getInsertIntoResponsesSql() {
         return """
-               -- QUERY TO INSERT INTO XMLA_RESPONSES
                INSERT INTO GATLING_XMLA_RESPONSES (
                     RUN_KEY,
                     GATLING_RUN_ID,
@@ -493,12 +561,11 @@ public class ArchiveXmlaToSnowflakeExecutor {
                     QUERY_HASH,
                     SOAP_HEADER,
                     SOAP_BODY,
-                    SOAP_BODY_HASH -- New column
+                    SOAP_BODY_HASH
                 )
                 WITH ModifiedSoap AS (
                     SELECT
                         *,
-                        -- Calculate the modified SOAP body as a string once
                         REGEXP_REPLACE(
                           XMLGET(PARSE_XML(RAW_SOAP), 'soap:Body')::VARCHAR,
                           '<LastDataUpdate.*?>[^<]*</LastDataUpdate>',
@@ -525,8 +592,8 @@ public class ArchiveXmlaToSnowflakeExecutor {
                     QUERY_NAME,
                     QUERY_HASH,
                     XMLGET(PARSE_XML(RAW_SOAP),'soap:Header') AS SOAP_HEADER,
-                    MODIFIED_SOAP_BODY_STR::VARIANT AS SOAP_BODY, -- Use the pre-calculated string, cast to VARIANT
-                    SHA2(MODIFIED_SOAP_BODY_STR, 256) AS SOAP_BODY_HASH -- Hash the pre-calculated string
+                    MODIFIED_SOAP_BODY_STR::VARIANT AS SOAP_BODY,
+                    SHA2(MODIFIED_SOAP_BODY_STR, 256) AS SOAP_BODY_HASH
                 FROM
                     ModifiedSoap;
                """;

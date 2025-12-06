@@ -8,9 +8,14 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,11 +28,27 @@ public class ArchiveJdbcToSnowflakeExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(ArchiveJdbcToSnowflakeExecutor.class);
     private static final String STAGE = "GATLING_LOGS_STAGE";
     private static final String RAW_TABLE = "GATLING_RAW_SQL_LOGS";
-    private static final String RUN_LOGS_DIR = "working_dir/run_logs";
+    private static final String WORKING_DIR = "working_dir";
+    private static final String RUN_LOGS_DIR = WORKING_DIR + "/run_logs";
+    private static final String CONFIG_DIR = WORKING_DIR + "/config";
+    private static final String SYSTEMS_PROPERTIES = CONFIG_DIR + "/systems.properties";
+
+    static {
+        try {
+            Class.forName("net.snowflake.client.jdbc.SnowflakeDriver");
+            LOGGER.info("Snowflake JDBC driver registered in static initializer");
+        } catch (ClassNotFoundException e) {
+            LOGGER.error("Failed to load Snowflake JDBC driver: {}", e.getMessage());
+            throw new RuntimeException("Snowflake JDBC driver not found. Make sure snowflake-jdbc dependency is included in pom.xml", e);
+        }
+    }
 
     public static void main(String[] args) {
         LOGGER.info("ArchiveJdbcToSnowflakeExecutor started.");
         try {
+            // Initialize properties from systems.properties FIRST
+            loadSystemsProperties();
+            
             ArchiveJdbcToSnowflakeExecutor executor = new ArchiveJdbcToSnowflakeExecutor();
             executor.initAdditionalProperties();
             executor.execute();
@@ -37,7 +58,7 @@ public class ArchiveJdbcToSnowflakeExecutor {
         }
         LOGGER.info("ArchiveJdbcToSnowflakeExecutor completed.");
         try{
-            Thread.sleep(java.time.Duration.ofSeconds(30).toMillis());
+            Thread.sleep(Duration.ofSeconds(30).toMillis());
         }catch(InterruptedException ie){
             Thread.currentThread().interrupt();
         }
@@ -45,20 +66,47 @@ public class ArchiveJdbcToSnowflakeExecutor {
         org.apache.logging.log4j.LogManager.shutdown();
     }
 
+    private static void loadSystemsProperties() {
+        try {
+            Path propertiesPath = Paths.get(SYSTEMS_PROPERTIES);
+            if (Files.exists(propertiesPath)) {
+                LOGGER.info("Loading properties from: {}", propertiesPath.toAbsolutePath());
+                Properties properties = new Properties();
+                try (java.io.FileInputStream fis = new java.io.FileInputStream(propertiesPath.toFile())) {
+                    properties.load(fis);
+                }
+                
+                // Convert Properties to Map for PropertiesManager
+                Map<String, String> propsMap = new HashMap<>();
+                for (String key : properties.stringPropertyNames()) {
+                    propsMap.put(key, properties.getProperty(key));
+                }
+                
+                // Set properties in PropertiesManager
+                PropertiesManager.setCustomProperties(propsMap);
+                LOGGER.info("Successfully loaded systems.properties with {} properties", propsMap.size());
+            } else {
+                LOGGER.warn("Properties file not found: {}", propertiesPath.toAbsolutePath());
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to load systems.properties", e);
+        }
+    }
+
     protected void execute() {
-        // Get models from systems.properties using the correct method
-        List<String> models = PropertiesManager.getAtScaleModels();
-        if (models.isEmpty()) {
-            LOGGER.warn("No models found in systems.properties. Nothing to archive.");
+        // Get ALL cube names from systems.properties
+        List<String> cubeNames = getAllCubeNamesFromProperties();
+        if (cubeNames.isEmpty()) {
+            LOGGER.warn("No cubes found in systems.properties. Nothing to archive.");
             return;
         }
         
-        LOGGER.info("Found {} models in systems.properties: {}", models.size(), models);
+        LOGGER.info("Found {} cubes in systems.properties: {}", cubeNames.size(), cubeNames);
         
-        // Find all JDBC log files for these models
-        List<Path> jdbcLogFiles = findJdbcLogFiles(models);
+        // Find JDBC log files for these cubes
+        List<Path> jdbcLogFiles = findJdbcLogFiles(cubeNames);
         if (jdbcLogFiles.isEmpty()) {
-            LOGGER.warn("No JDBC log files found for models. Nothing to archive.");
+            LOGGER.warn("No JDBC log files found for cubes. Nothing to archive.");
             return;
         }
         
@@ -86,7 +134,53 @@ public class ArchiveJdbcToSnowflakeExecutor {
         }
     }
 
-    private List<Path> findJdbcLogFiles(List<String> models) {
+    private List<String> getAllCubeNamesFromProperties() {
+        Set<String> cubeNames = new HashSet<>();
+        try {
+            // Load properties directly from systems.properties
+            Path propertiesPath = Paths.get(SYSTEMS_PROPERTIES);
+            if (Files.exists(propertiesPath)) {
+                Properties properties = new Properties();
+                try (java.io.FileInputStream fis = new java.io.FileInputStream(propertiesPath.toFile())) {
+                    properties.load(fis);
+                    
+                    // Look for cube properties like in the simulation executor
+                    for (String propertyName : properties.stringPropertyNames()) {
+                        if (propertyName.startsWith("atscale.") && propertyName.contains(".xmla.cube")) {
+                            String cubeIdentifier = propertyName.substring("atscale.".length(), propertyName.indexOf(".xmla.cube"));
+                            String cubeName = properties.getProperty(propertyName);
+                            if (cubeName != null && !cubeName.trim().isEmpty()) {
+                                cubeNames.add(cubeName.trim());
+                                LOGGER.debug("Found cube '{}' from property '{}'", cubeName, propertyName);
+                            }
+                        }
+                    }
+                    
+                    // Fallback to models property if no specific cubes found
+                    if (cubeNames.isEmpty()) {
+                        String models = properties.getProperty("atscale.models");
+                        if (models != null && !models.trim().isEmpty()) {
+                            String[] modelList = models.split(",");
+                            for (String model : modelList) {
+                                String trimmedModel = model.trim();
+                                if (!trimmedModel.isEmpty()) {
+                                    cubeNames.add(trimmedModel);
+                                    LOGGER.debug("Found cube '{}' from atscale.models", trimmedModel);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error reading cube names from properties", e);
+        }
+        
+        LOGGER.info("Retrieved {} cube names from properties", cubeNames.size());
+        return new ArrayList<>(cubeNames);
+    }
+
+    private List<Path> findJdbcLogFiles(List<String> cubeNames) {
         List<Path> logFiles = new ArrayList<>();
         Path runLogsDir = Paths.get(RUN_LOGS_DIR);
         
@@ -96,36 +190,52 @@ public class ArchiveJdbcToSnowflakeExecutor {
         }
 
         try {
-            // Look for JDBC log files for each model
-            for (String model : models) {
-                // Model might have spaces, replace with underscores for filename
-                String safeModelName = model.replace(" ", "_");
+            // Look for JDBC log files for each cube
+            for (String cubeName : cubeNames) {
+                // ONLY replace spaces with underscores, keep dashes as-is
+                String sanitizedCubeName = cubeName.replace(" ", "_");
                 
-                // Pattern: <model>_jdbc_open.log
-                String jdbcLogPattern = safeModelName + "_jdbc_open.log";
-                Path jdbcLogFile = runLogsDir.resolve(jdbcLogPattern);
+                LOGGER.debug("Looking for JDBC log files for cube: {} (sanitized: {})", cubeName, sanitizedCubeName);
                 
-                if (Files.exists(jdbcLogFile)) {
-                    logFiles.add(jdbcLogFile);
-                    LOGGER.info("Found JDBC log file for model '{}': {}", model, jdbcLogFile);
-                } else {
-                    LOGGER.info("JDBC log file not found for model '{}': {}", model, jdbcLogFile);
+                // Look for files that match the pattern: <sanitized_cube>_jdbc*.log
+                try (var stream = Files.list(runLogsDir)) {
+                    stream.filter(Files::isRegularFile)
+                        .filter(path -> {
+                            String fileName = path.getFileName().toString();
+                            // Look for files starting with sanitized cube name, containing _jdbc, ending with .log
+                            return fileName.startsWith(sanitizedCubeName + "_") && 
+                                    fileName.contains("_jdbc") &&
+                                    fileName.endsWith(".log");
+                        })
+                        .forEach(jdbcLogFile -> {
+                            logFiles.add(jdbcLogFile);
+                            LOGGER.info("Found JDBC log file for cube '{}': {}", cubeName, jdbcLogFile.getFileName());
+                        });
                 }
             }
 
-            // Also look for any other JDBC log files that might not follow the exact pattern
+            // Also look for any other JDBC log files that might have different naming patterns
+            LOGGER.debug("Looking for additional JDBC log files with broader pattern...");
             try (var stream = Files.list(runLogsDir)) {
                 stream.filter(Files::isRegularFile)
-                      .filter(path -> path.getFileName().toString().contains("_jdbc_"))
-                      .filter(path -> path.getFileName().toString().endsWith(".log"))
-                      .filter(path -> !logFiles.contains(path))
-                      .forEach(logFiles::add);
+                    .filter(path -> {
+                        String fileName = path.getFileName().toString();
+                        // Look for files containing "_jdbc_" and ".log"
+                        return fileName.contains("_jdbc_") && 
+                                fileName.endsWith(".log") &&
+                                !logFiles.contains(path);
+                    })
+                    .forEach(jdbcLogFile -> {
+                        logFiles.add(jdbcLogFile);
+                        LOGGER.info("Found additional JDBC log file: {}", jdbcLogFile.getFileName());
+                    });
             }
 
         } catch (Exception e) {
             LOGGER.error("Error searching for JDBC log files", e);
         }
 
+        LOGGER.info("Total JDBC log files found: {}", logFiles.size());
         return logFiles;
     }
 
@@ -134,7 +244,7 @@ public class ArchiveJdbcToSnowflakeExecutor {
         
         try {
             List<String> runIds = RunLogUtils.extractGatlingRunIds(dataFile);
-            LOGGER.info("Found {} unique JDBC RUN IDs in log file {}:: {}", runIds.size(), dataFile, runIds);
+            LOGGER.info("Found {} unique JDBC RUN IDs in log file {}: {}", runIds.size(), dataFile, runIds);
 
             // Save original auto-commit and start transaction control for DML
             boolean originalAutoCommit = conn.getAutoCommit();
@@ -580,14 +690,15 @@ public class ArchiveJdbcToSnowflakeExecutor {
                 /* lineage + raw */
                 src_filename,
                 src_row_number,
-                raw_line            FROM GATLING_RAW_SQL_LOGS
-                WHERE src_filename = '%s'
-                AND raw_line LIKE ?
-                AND NOT EXISTS (
-                    select gatling_run_id from gatling_sql_headers
-                    where gatling_run_id = ?
-                    limit 1
-                );
+                raw_line
+            FROM GATLING_RAW_SQL_LOGS
+            WHERE src_filename = '%s'
+            AND raw_line LIKE ?
+            AND NOT EXISTS (
+                select gatling_run_id from gatling_sql_headers
+                where gatling_run_id = ?
+                limit 1
+            );
             """, fileName);
     }
 
