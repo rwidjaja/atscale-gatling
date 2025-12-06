@@ -1,171 +1,231 @@
-# atscale-gatling (wrapped)
+# atscale-gatling
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
 [![Docker Image](https://img.shields.io/badge/docker-ready-brightgreen.svg)](https://hub.docker.com/r/rwidjaja/atscale-gatling)
 
-This repository ships the AtScale Gatling tooling. The project now exposes a small wrapper package
-`atscalewrapper/` that provides a single, consistent entrypoint: `python main.py`.
+A unified automation framework for running Gatling-based simulations, custom query extraction, data ingestion, and archiving workloads against AtScale or other analytical engines. Supports both GUI and CLI modes, includes multiple workload models (open/closed, sequential/concurrent), and provides optional Docker and Docker-Compose deployment.
 
-## Quick Summary
+Key features:
 
-- Run the program: `python main.py`
-- GUI mode: `python main.py --mode gui`
-- CLI mode: `python main.py --mode cli`
+- Multiple execution modes: GUI, CLI, and auto-detect
+- Built-in executors for extract, simulation, and archive workflows
+- Open and closed workload models (arrival-rate and concurrent-user)
+- Docker-friendly with helper scripts and optional truststore support
 
-## Project layout (relevant parts)
+📦 Features
 
-atscalewrapper/
-├── __init__.py       # Package exports
-├── core.py           # Core functionality (factory/helpers)
-├── gui.py            # GUI adapter/export
-├── cli.py            # CLI adapter/export
-├── config.py         # Configuration helper
-├── main.py           # Top-level entrypoint (use `python main.py`)
-├── config.json       # Optional packaged configuration (edit before run)
-└── cacerts           # Optional truststore
+- **Multiple Execution Modes:**
+  - GUI mode: `--mode gui`
+  - CLI mode: `--mode cli`
+  - Auto-detect (default): run `python main.py`
 
-Other runtime directories (created by the app):
+- **Executors Included:**
+  - `CustomQueryExtractExecutor`
+  - `InstallerVerQueryExtractExecutor`
+  - `OpenStepConcurrentSimulationExecutor`
+  - `ClosedStepConcurrentSimulationExecutor`
+  - `OpenStepSequentialSimulationExecutor`
+  - `ClosedStepSequentialSimulationExecutor`
+  - `ArchiveJdbcToSnowflake`
+  - `ArchiveXmlaToSnowflake`
+
+- **Workload Models:**
+  - Open (arrival-rate based) simulations
+  - Closed (concurrent-user based) simulations
+  - Sequential or concurrent looping
+  - Fully configurable per run via `config.json` and `systems.properties`
+
+First-run auto setup (runtime layout created under `working_dir/`):
 
 ```
 working_dir/
-├── config/systems.properties
-├── run_logs/
-├── app_logs/
-└── queries/
+  config/systems.properties
+  run_logs/
+  app_logs/
+  queries/
+  control/
 ```
 
-## ⚡ Quick Start
+✔ Docker Support
 
-### Prerequisites
+- Local run via Python
+- Run completely inside containers
+- Helper scripts:
+  - `build-docker.sh`
+  - `publish-docker.sh`
+  - `run-executor.sh`
+  - `run-interactive.sh`
 
-- Docker
-- Python 3.7+
-- `curl` or `git` (optional)
+Project layout (relevant):
 
-- Optional: run the included dependency checker to validate your environment:
-
-```bash
-python3 check-dependencies.py
+```
+atscale-gatling/
+├── atscalewrapper/             # Main wrapper package / entrypoint
+│   ├── __init__.py
+│   ├── core.py
+│   ├── gui.py
+│   ├── cli.py
+│   ├── main.py
+│   ├── config.py
+│   ├── config.json
+│   └── cacerts/
+├── ingest/                     # Ingestion / archive helpers
+├── lib/                        # Utilities, constants, helpers
+├── scripts/                    # Snowflake + other helper scripts
+├── config.json.example         # Example configuration
+├── example_systems.properties  # Example systems.properties
+├── check-dependencies.py       # Diagnose missing requirements
+├── dockerfile
+├── docker-compose.yml
+├── build-docker.sh
+├── run-executor.sh
+├── run-interactive.sh
+├── publish-docker.sh
+└── README.md
 ```
 
-### Running the app
+🧰 Prerequisites
 
-Use the packaged main entrypoint at the repository root.
+Local run:
 
-- Auto-detect (default) mode:
+- `Python 3.8+`
+- `Java` (required for running Gatling simulations)
+- Optional: Snowflake CLI / JDBC drivers (for archive jobs)
 
-```bash
+Containerized run:
+
+- `Docker`
+- (Optional) `docker-compose`
+
+Additional runtime files often required:
+
+- `root.crt` for Postgres
+- `cacerts` directory (if using a truststore) and password `changeit` by default in examples
+
+🚀 Running the Application
+
+Local – Auto mode:
+
+```
 python main.py
 ```
 
-- Force GUI mode:
+Force GUI mode:
 
-```bash
+```
 python main.py --mode gui
 ```
 
-- Force CLI mode:
+Force CLI mode:
 
-```bash
+```
 python main.py --mode cli
 ```
 
-Example CLI invocation:
+Example CLI run:
 
-```bash
-python main.py --mode cli --executor CustomQueryExtractExecutor --models "Catalog1,Catalog2"
+```
+python main.py \
+  --mode cli \
+  --executor CustomQueryExtractExecutor \
+  --models "Catalog1,Catalog2"
 ```
 
-Note: use `python` or `python3` depending on your environment.
----
+Run from Docker (simple):
 
-## 3️⃣ Build or run Docker image
-
-### Optional: Build locally
-```bash
-./mvnw clean package -DskipTests
-docker build -t rwidjaja/atscale-gatling:latest .
+```
+docker run --rm \
+  -v $(pwd)/working_dir:/app/working_dir \
+  rwidjaja/atscale-gatling:latest \
+  CustomQueryExtractExecutor
 ```
 
-### Run with truststore example
-```bash
+With truststore (example):
+
+```
 docker run --rm \
   -v $(pwd)/working_dir:/app/working_dir \
   -v $(pwd)/cacerts:/app/cacerts \
   -e JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/app/cacerts -Djavax.net.ssl.trustStorePassword=changeit" \
-  rwidjaja/atscale-gatling:latest CustomQueryExtractExecutor
+  rwidjaja/atscale-gatling:latest \
+  OpenStepConcurrentSimulationExecutor
 ```
 
----
+📄 Configuration
 
-## 🐳 Docker Compose (optional)
-Create service definitions and run executors via:
+`systems.properties`
 
-```bash
-docker-compose run <service>
-```
+Defines:
 
----
+- JDBC / HTTP / XMLA endpoints
+- Credentials
+- Snowflake settings (if used)
 
-## 🧰 Available Executors
+Example located at: `example_systems.properties`
+
+`config.json`
+
+Configures:
+
+- Executors
+- Simulation settings
+- Query folders and output formats
+
+See: `config.json.example`
+
+🧪 Executors Overview
+
 | Executor | Description |
-|----------|-------------|
-| InstallerVerQueryExtractExecutor | Targeted installer version queries |
-| CustomQueryExtractExecutor | Custom SQL query execution |
-| OpenStepConcurrentSimulationExecutor | Open concurrency workload |
-| ClosedStepConcurrentSimulationExecutor | Closed concurrency workload |
-| OpenStepSequentialSimulationExecutor | Sequential open workload |
-| ClosedStepSequentialSimulationExecutor | Sequential closed workload |
-| ArchiveJdbcToSnowflake | Archive over JDBC |
-| ArchiveXmlaToSnowflake | Archive over XMLA |
+|---|---|
+| `CustomQueryExtractExecutor` | Run your own SQL files located in `working_dir/queries/` |
+| `InstallerVerQueryExtractExecutor` | Query installer/version metadata |
+| `OpenStepConcurrentSimulationExecutor` | Open workload, concurrent step-based |
+| `ClosedStepConcurrentSimulationExecutor` | Closed workload, concurrent step-based |
+| `OpenStepSequentialSimulationExecutor` | Sequential open workload |
+| `ClosedStepSequentialSimulationExecutor` | Sequential closed workload |
+| `ArchiveJdbcToSnowflake` | Push JDBC resultsets into Snowflake |
+| `ArchiveXmlaToSnowflake` | Push XMLA resultsets into Snowflake |
 
----
+🧩 Stopping a Running Simulation
 
-## Simulation Modes: Open vs Closed
+Create this file to request a graceful shutdown:
 
-Open and Closed simulations represent two common workload models used by the executors above. Briefly:
-
-- **Open (arrival-rate based):** users arrive according to a rate (users per second). Use when modelling an external traffic flow.
-- **Closed (concurrent-user based):** a fixed pool of concurrent users is maintained; users loop through tasks. Use when modelling a fixed number of clients consuming the system.
-
-Executor Class | Injection Step Type | Meaning
----|---|---
-`OpenStepConcurrentSimulationExecutor` | `AtOnceUsersOpenInjectionStep`, `RampUsersPerSecOpenInjectionStep` | Defines user arrivals per second (traffic flow).
-`ClosedStepConcurrentSimulationExecutor` | `ConstantConcurrentUsersClosedInjectionStep`, `IncrementConcurrentUsersClosedInjectionStep` | Defines number of concurrent users (fixed or stepped) for closed workload modelling.
-
-
-## 📁 Runtime Layout
 ```
-atscale-gatling/
-├── atscale-gatling.py
-├── config.json
-└── working_dir/
-    ├── config/systems.properties
-    ├── run_logs/
-    ├── app_logs/
-    └── queries/
+working_dir/control/stop_simulation
 ```
 
----
+Executors watch for the file and will shut down gracefully when detected.
 
-## 📝 Notes & Recommendations
-- **Do not commit credentials or generated configs**
-  (`config.json` and `systems.properties` must be ignored in Git)
- - **Terminate simulation:** create a file at `working_dir/control/stop_simulation`.
-   Executors watch for this file; creating it signals a graceful shutdown of the running simulation.
- - **GUI version available:** `atscale-gatling.py` is the text/interactive generator; the GUI variant is
-   `atscale-gatling-gui.py` (windowed interface). Run the GUI with `python3 atscale-gatling-gui.py`.
-- Make helper scripts executable:
-  ```bash
-  chmod +x build-docker.sh run-executor.sh run-interactive.sh
-  ```
-- Example automation artifacts (optional): `build-docker.sh`, `run-executor.sh`, `docker-compose.yml`
+Checking Your Environment
 
-**Dependency Check Script**
-- **`check-dependencies.py`**: A small utility included with this distribution to help verify that your development/runtime environment meets the minimum requirements. Run it manually with:
-
-```bash
+```
 python3 check-dependencies.py
 ```
 
-It prints a short report of any missing or incompatible tools and libraries so you can address issues before attempting to run executors or build the Docker image.
+This verifies:
+
+- Python modules
+- Java installation
+- Gatling dependencies
+- Folder structure and permissions
+
+📌 Notes
+
+- `working_dir/` is auto-generated at runtime — safe to delete/reset.
+- Do not commit `config.json` or `systems.properties` (they contain credentials).
+- GUI mode is available via the internal wrapper (`atscalewrapper.gui`).
+- The wrapper (`atscalewrapper/`) exposes the public execution entrypoints and the unified `main.py`.
+- Make helper scripts executable when needed:
+
+```
+chmod +x build-docker.sh run-executor.sh run-interactive.sh
+```
+
+If you want, I can also:
+
+- Run `python3 check-dependencies.py` locally and report findings
+- Create a short CONTRIBUTING or QUICKSTART section for your CI/docker usage
+
+---
+
+© Project maintained by the repository owner
