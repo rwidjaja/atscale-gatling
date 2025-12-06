@@ -16,7 +16,7 @@ Thumbs.db
 
 # Logs
 *.log
-archive/
+archive/*
 # Configs or secrets
 config.json
 cacerts
