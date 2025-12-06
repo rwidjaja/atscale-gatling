@@ -53,21 +53,24 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
         
         try {
             // First, load the configuration to get actual duration
-            int simulationDurationMinutes = 1; // Default for open steps
+            // First, load the configuration to get actual duration
+            // Default durationMinutes from GUI is 45 for concurrent open steps
+            int simulationDurationMinutes = 1; // fallback default
+
             try {
                 File runtimeFile = new File("working_dir", "config" + File.separator + "runtime.json");
                 if (runtimeFile.exists()) {
                     ObjectMapper objectMapper = new ObjectMapper();
                     JsonNode rootNode = objectMapper.readTree(runtimeFile);
-                    JsonNode executorConfig = rootNode.get("OpenStepSequentialSimulationExecutor");
+                    JsonNode executorConfig = rootNode.get("OpenStepConcurrentSimulationExecutor");
                     if (executorConfig != null) {
-                        // For open steps, we might not have durationSeconds, so use default
                         JsonNode injectionSteps = executorConfig.get("injectionSteps");
                         if (injectionSteps != null && injectionSteps.isArray() && injectionSteps.size() > 0) {
                             JsonNode firstStep = injectionSteps.get(0);
-                            if (firstStep.has("durationSeconds")) {
-                                int durationSeconds = firstStep.get("durationSeconds").asInt(45);
-                                simulationDurationMinutes = (int) Math.max(1, Math.ceil(durationSeconds / 60.0));
+                            if (firstStep.has("durationMinutes")) {
+                                int durationMinutes = firstStep.get("durationMinutes").asInt(45);
+                                // ✅ Use minutes directly, enforce minimum of 1
+                                simulationDurationMinutes = Math.max(1, durationMinutes);
                             }
                         }
                     }
@@ -75,11 +78,14 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
             } catch (Exception e) {
                 logger.log(Level.WARNING, "Failed to read runtime.json, using default timeout", e);
             }
-            
-            // Calculate timeout: simulation time + 2 minutes buffer
+
+            // Calculate timeout in seconds: simulation duration + 2-minute buffer
             long timeoutSeconds = (simulationDurationMinutes * 60L) + 120L;
-            logger.info("Setting timeout to " + timeoutSeconds + " seconds for " + 
-                       simulationDurationMinutes + " minute simulation");
+
+            logger.info("Setting timeout to " + timeoutSeconds +
+                    " seconds (simulation: " + simulationDurationMinutes + " minutes + 2-minute buffer)");
+
+
             
             // Create a thread pool to run the simulation with timeout
             executorService = Executors.newSingleThreadExecutor();

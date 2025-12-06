@@ -228,7 +228,7 @@ class AtScaleGatlingGUI:
                     "step_type": "ConstantConcurrentUsersClosedInjectionStep",
                     "fields": [
                         {"name": "users", "label": "Number of Users", "type": "int", "default": 10},
-                        {"name": "durationSeconds", "label": "Duration (seconds)", "type": "int", "default": 60}
+                        {"name": "durationMinutes", "label": "Duration (Minutes)", "type": "int", "default": 60}
                     ]
                 },
                 "OpenStepSequentialSimulationExecutor": {
@@ -243,7 +243,7 @@ class AtScaleGatlingGUI:
                     "step_type": "ConstantConcurrentUsersClosedInjectionStep",
                     "fields": [
                         {"name": "users", "label": "Number of Users", "type": "int", "default": 15},
-                        {"name": "durationSeconds", "label": "Duration (seconds)", "type": "int", "default": 45}
+                        {"name": "durationMinutes", "label": "Duration (Minutes)", "type": "int", "default": 45}
                     ]
                 },
                 "OpenStepConcurrentSimulationExecutor": {
@@ -391,7 +391,7 @@ class AtScaleGatlingGUI:
                         
                         try:
                             # Convert to appropriate type
-                            if key == "users" or key == "durationSeconds":
+                            if key == "users" or key == "durationMinutes":
                                 value = int(value_str)
                                 if value <= 0:
                                     raise ValueError("must be positive")

@@ -132,14 +132,6 @@ python main.py \
 ```
 
 Run from Docker (simple):
-
-```
-docker run --rm \
-  -v $(pwd)/working_dir:/app/working_dir \
-  rwidjaja/atscale-gatling:latest \
-  CustomQueryExtractExecutor
-```
-
 With truststore and PostgreSQL root certificate (example):
 
 ```
@@ -154,6 +146,14 @@ docker run --rm \
 ```
 
 📄 Configuration
+
+**Auto-Detection & Setup**
+
+On first run, the system automatically:
+
+- Creates `working_dir/` if missing
+- Detects and creates `config.json` if not present (using defaults or `config.json.example` as template)
+- Creates `systems.properties` if missing
 
 `systems.properties`
 
@@ -170,10 +170,34 @@ Example located at: `example_systems.properties`
 Configures:
 
 - Executors
-- Simulation settings
+- Simulation settings (injection steps, users, duration)
 - Query folders and output formats
 
 See: `config.json.example`
+
+If `config.json` is missing, the system will generate a default one on startup. You can then customize it for your workload.
+
+**Multi-Host Query Extraction & Simulation**
+
+You can extract queries from one host and run simulations against another. Update `systems.properties` endpoints as needed:
+
+```properties
+# Extract from host A
+query.extraction.jdbc.url=jdbc:postgresql://host-a:5432/database
+query.extraction.jdbc.user=user
+query.extraction.jdbc.password=pass
+
+# Run simulation against host B
+simulation.jdbc.url=jdbc:postgresql://host-b:5432/database
+simulation.jdbc.user=user
+simulation.jdbc.password=pass
+```
+
+**Customizing Simulation Configuration per Executor**
+
+Each executor's injection steps can be customized in `config.json`. Example:
+
+Each executor class can have independent `injectionSteps`, `users`, and `durationMinutes` configurations, allowing you to tailor workload parameters per simulation type.
 
 🧪 Executors Overview
 

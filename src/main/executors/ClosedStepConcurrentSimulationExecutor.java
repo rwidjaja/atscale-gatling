@@ -56,6 +56,7 @@ public static void main(String[] args) {
     
     try {
         // First, load the configuration to get actual duration
+        // First, load the configuration to get actual duration
         int simulationDurationMinutes = 1; // Default
         try {
             File runtimeFile = new File("working_dir", "config" + File.separator + "runtime.json");
@@ -67,9 +68,10 @@ public static void main(String[] args) {
                     JsonNode injectionSteps = executorConfig.get("injectionSteps");
                     if (injectionSteps != null && injectionSteps.isArray() && injectionSteps.size() > 0) {
                         JsonNode firstStep = injectionSteps.get(0);
-                        if (firstStep.has("durationSeconds")) {
-                            int durationSeconds = firstStep.get("durationSeconds").asInt(45);
-                            simulationDurationMinutes = (int) Math.max(1, Math.ceil(durationSeconds / 60.0));
+                        if (firstStep.has("durationMinutes")) {
+                            int durationMinutes = firstStep.get("durationMinutes").asInt(45);
+                            // ✅ Use minutes directly, enforce minimum of 1
+                            simulationDurationMinutes = Math.max(1, durationMinutes);
                         }
                     }
                 }
@@ -77,11 +79,12 @@ public static void main(String[] args) {
         } catch (Exception e) {
             logger.log(Level.WARNING, "Failed to read runtime.json, using default timeout", e);
         }
-        
+
         // Calculate timeout: simulation time + 2 minutes buffer
         long timeoutSeconds = (simulationDurationMinutes * 60L) + 120L;
-        logger.info("Setting timeout to " + timeoutSeconds + " seconds for " + 
-                   simulationDurationMinutes + " minute simulation");
+        logger.info("Setting timeout to " + timeoutSeconds + " seconds for " +
+                simulationDurationMinutes + " minute simulation");
+
         
         // Create a thread pool to run the simulation with timeout
         executorService = Executors.newSingleThreadExecutor();
@@ -262,16 +265,19 @@ public static void main(String[] args) {
             
             int users = firstStep.has("users") ? firstStep.get("users").asInt(defaultUsers) : defaultUsers;
             
-            // Convert seconds to minutes (rounding up to at least 1 minute)
-            // Default durationSeconds from GUI is 45 for concurrent closed steps
-            int durationSeconds = firstStep.has("durationSeconds") ? firstStep.get("durationSeconds").asInt(45) : 45;
-            long durationMinutes = (long) Math.max(1, Math.ceil(durationSeconds / 60.0));
-            
-            logger.info("Loaded injection step from runtime.json: users=" + users + 
-                    ", durationSeconds=" + durationSeconds + 
+            // Default durationMinutes from GUI is 45 for concurrent closed steps
+            int durationMinutes = firstStep.has("durationMinutes")
+                    ? firstStep.get("durationMinutes").asInt(45)
+                    : 45;
+
+            // Ensure at least 1 minute
+            durationMinutes = Math.max(1, durationMinutes);
+
+            logger.info("Loaded injection step from runtime.json: users=" + users +
                     ", durationMinutes=" + durationMinutes);
-            
+
             return new ConstantConcurrentUsersClosedInjectionStep(users, durationMinutes);
+
             
         } catch (Exception e) {
             logger.log(Level.WARNING, "Error reading runtime.json, using defaults", e);
