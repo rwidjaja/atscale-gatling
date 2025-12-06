@@ -140,13 +140,15 @@ docker run --rm \
   CustomQueryExtractExecutor
 ```
 
-With truststore (example):
+With truststore and PostgreSQL root certificate (example):
 
 ```
 docker run --rm \
   -v $(pwd)/working_dir:/app/working_dir \
   -v $(pwd)/cacerts:/app/cacerts \
+  -v $(pwd)/root.crt:/root/.postgresql/root.crt \
   -e JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/app/cacerts -Djavax.net.ssl.trustStorePassword=changeit" \
+  -e PGSSLROOTCERT=/root/.postgresql/root.crt \
   rwidjaja/atscale-gatling:latest \
   OpenStepConcurrentSimulationExecutor
 ```

@@ -10,6 +10,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,6 +23,8 @@ import com.atscale.java.executors.MavenTaskDto;
 import com.atscale.java.executors.SequentialSimulationExecutor;
 import com.atscale.java.injectionsteps.AtOnceUsersOpenInjectionStep;
 import com.atscale.java.injectionsteps.OpenStep;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class OpenStepSequentialSimulationExecutor extends SequentialSimulationExecutor<OpenStep> {
     
@@ -35,10 +43,121 @@ public class OpenStepSequentialSimulationExecutor extends SequentialSimulationEx
     public static void main(String[] args) {
         logger.info("OpenStepSequentialSimulationExecutor started.");
         
-        OpenStepSequentialSimulationExecutor executor = new OpenStepSequentialSimulationExecutor();
-        executor.execute();
+        // Add a shutdown hook to verify System.exit works
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            logger.info("🎯 SHUTDOWN HOOK EXECUTED - System.exit() is working!");
+        }));
         
-        logger.info("OpenStepSequentialSimulationExecutor completed.");
+        int exitCode = 0;
+        ExecutorService executorService = null;
+        
+        try {
+            // First, load the configuration to get actual duration
+            int simulationDurationMinutes = 1; // Default for open steps
+            try {
+                File runtimeFile = new File("working_dir", "config" + File.separator + "runtime.json");
+                if (runtimeFile.exists()) {
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode rootNode = objectMapper.readTree(runtimeFile);
+                    JsonNode executorConfig = rootNode.get("OpenStepSequentialSimulationExecutor");
+                    if (executorConfig != null) {
+                        // For open steps, we might not have durationSeconds, so use default
+                        JsonNode injectionSteps = executorConfig.get("injectionSteps");
+                        if (injectionSteps != null && injectionSteps.isArray() && injectionSteps.size() > 0) {
+                            JsonNode firstStep = injectionSteps.get(0);
+                            if (firstStep.has("durationSeconds")) {
+                                int durationSeconds = firstStep.get("durationSeconds").asInt(45);
+                                simulationDurationMinutes = (int) Math.max(1, Math.ceil(durationSeconds / 60.0));
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Failed to read runtime.json, using default timeout", e);
+            }
+            
+            // Calculate timeout: simulation time + 2 minutes buffer
+            long timeoutSeconds = (simulationDurationMinutes * 60L) + 120L;
+            logger.info("Setting timeout to " + timeoutSeconds + " seconds for " + 
+                       simulationDurationMinutes + " minute simulation");
+            
+            // Create a thread pool to run the simulation with timeout
+            executorService = Executors.newSingleThreadExecutor();
+            Future<?> future = executorService.submit(() -> {
+                OpenStepSequentialSimulationExecutor executor = new OpenStepSequentialSimulationExecutor();
+                executor.execute();
+            });
+            
+            try {
+                future.get(timeoutSeconds, TimeUnit.SECONDS);
+                logger.info("OpenStepSequentialSimulationExecutor completed successfully.");
+            } catch (TimeoutException e) {
+                logger.severe("OpenStepSequentialSimulationExecutor timed out after " + 
+                             timeoutSeconds + " seconds! Forcing shutdown...");
+                future.cancel(true); // Interrupt the execution
+                
+                // Dump threads to see what's hanging
+                dumpThreads();
+                
+                exitCode = 1;
+            } catch (ExecutionException e) {
+                logger.log(Level.SEVERE, "OpenStepSequentialSimulationExecutor failed", e.getCause());
+                exitCode = 1;
+            } catch (InterruptedException e) {
+                logger.log(Level.SEVERE, "OpenStepSequentialSimulationExecutor interrupted", e);
+                exitCode = 1;
+            }
+            
+        } catch (Throwable t) {
+            logger.log(Level.SEVERE, "OpenStepSequentialSimulationExecutor failed with error", t);
+            exitCode = 1;
+        } finally {
+            // Shutdown executor service
+            if (executorService != null) {
+                executorService.shutdownNow();
+                try {
+                    if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                        executorService.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    executorService.shutdownNow();
+                }
+            }
+            
+            logger.info("About to call System.exit(" + exitCode + ")");
+            
+            // 🔥 FORCE JVM SHUTDOWN
+            System.exit(exitCode);
+        }
+    }
+    
+    private static void dumpThreads() {
+        try {
+            Map<Thread, StackTraceElement[]> all = Thread.getAllStackTraces();
+            logger.info("=== THREAD DUMP (" + all.size() + " threads) ===");
+            for (Thread t : all.keySet()) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("Thread[name=").append(t.getName())
+                .append(", daemon=").append(t.isDaemon())
+                .append(", state=").append(t.getState())
+                .append(", id=").append(t.getId())
+                .append(", alive=").append(t.isAlive())
+                .append("]");
+                
+                logger.info(sb.toString());
+                
+                // Only show stack traces for non-daemon threads or threads in RUNNABLE state
+                if (!t.isDaemon() || t.getState() == Thread.State.RUNNABLE) {
+                    StackTraceElement[] st = all.get(t);
+                    for (StackTraceElement e : st) {
+                        logger.info("    at " + e.toString());
+                    }
+                }
+            }
+            logger.info("=== END THREAD DUMP ===");
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to dump threads", e);
+        }
     }
     
     @Override
