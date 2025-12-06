@@ -30,3 +30,4 @@ working_dir/
 *.class
 *.jar
 root.crt
+build/*
