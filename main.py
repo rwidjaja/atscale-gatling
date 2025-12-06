@@ -1,78 +1,22 @@
 #!/usr/bin/env python3
 """
 Main entry point for AtScale Gatling Controller.
-Supports GUI mode and CLI mode.
+Clean version without debug prints.
 """
 
 import sys
 import os
-import glob
 import argparse
 
 from atscalewrapper.cli import run_cli_mode, create_cli_parser
 
-# GUI is imported lazily inside run_gui_mode() to allow CLI-only environments.
-# from atscalewrapper.gui import AtScaleGatlingGUI
 
-
-# Base SQL query used for generating working_dir/config/base_query.sql
-BASE_SQL_QUERY = """SELECT
-    q.service,
-    q.query_language,
-    q.query_text AS inbound_text,
-    MAX(s.subquery_text) AS outbound_text,
-    p.cube_name,
-    p.project_id,
-    CASE WHEN MAX(s.subquery_text) LIKE '%as_agg_%' THEN TRUE ELSE FALSE END AS used_agg,
-    COUNT(*)                             AS num_times,
-    AVG(r.finished - p.planning_started) AS elapsed_time_in_seconds,
-    AVG(r.result_size)                   AS avg_result_size
-FROM
-    atscale.queries q
-INNER JOIN
-    atscale.query_results r ON q.query_id = r.query_id
-INNER JOIN
-    atscale.queries_planned p ON q.query_id = p.query_id
-INNER JOIN
-    atscale.subqueries s ON q.query_id = s.query_id
-WHERE
-    q.query_language = ?
-    AND p.planning_started > CURRENT_TIMESTAMP - INTERVAL '60 day'
-    AND p.cube_name = ?
-    AND q.service = 'user-query'
-    AND r.succeeded = TRUE
-    AND LENGTH(q.query_text) > 100
-    AND q.query_text NOT LIKE '/* Virtual query to get the members of a level */%'
-    AND q.query_text NOT LIKE '-- statement does not return rows%'
-GROUP BY
-    1, 2, 3, 5, 6
-ORDER BY 3;
-"""
-
-
-def create_base_query_file():
-    """Ensure working_dir/config/base_query.sql exists."""
-    config_dir = "working_dir/config"
-    base_query_path = os.path.join(config_dir, "base_query.sql")
-
-    os.makedirs(config_dir, exist_ok=True)
-
-    if not os.path.exists(base_query_path):
-        print(f"📝 Creating base_query.sql in {config_dir}")
-        with open(base_query_path, "w") as f:
-            f.write(BASE_SQL_QUERY)
-        print("✅ base_query.sql created successfully")
-    else:
-        print(f"✔ base_query.sql already exists at {base_query_path}")
-
-
-def check_dependencies():
+def check_dependencies() -> bool:
     """Check for required dependencies."""
     try:
         import tkinter  # noqa: F401
         import requests  # noqa: F401
         return True
-
     except ImportError as e:
         print(f"❌ Missing dependency: {e}")
         print("Please install required packages:")
@@ -80,96 +24,143 @@ def check_dependencies():
         return False
 
 
-def check_and_clean_logs_gui():
-    """Check for existing log files and ask user if they want to clean them up (GUI mode)."""
-    logs_dir = "working_dir/run_logs"
-    
-    # Create directory if it doesn't exist
-    os.makedirs(logs_dir, exist_ok=True)
-    
-    # Check for .log files
-    log_files = glob.glob(os.path.join(logs_dir, "*.log"))
-    
-    if not log_files:
-        return True  # No logs to clean
-    
+def ensure_config_exists(mode: str) -> bool:
+    """Ensure config.json exists before proceeding."""
     try:
-        import tkinter as tk
-        from tkinter import messagebox
-    except ImportError:
-        # If GUI dependencies aren't available, just print a message
-        print(f"⚠ Found {len(log_files)} existing log files in {logs_dir}/")
-        print("  To clean them manually, delete files from that directory.")
-        return True
-    
-    root = tk.Tk()
-    root.withdraw()  # Hide the root window
-    
-    # Show dialog
-    response = messagebox.askyesno(
-        "Clean Log Files",
-        f"Found {len(log_files)} existing log files in:\n{logs_dir}/\n\n"
-        "Do you want to clean them up before starting?",
-        icon=messagebox.QUESTION
-    )
-    
-    root.destroy()
-    
-    if response:
-        cleaned_count = 0
-        for log_file in log_files:
-            try:
-                os.remove(log_file)
-                cleaned_count += 1
-            except Exception as e:
-                print(f"❌ Failed to delete {log_file}: {e}")
+        from atscalewrapper.config_manager import ConfigManager
+        config_manager = ConfigManager()
         
-        # Show confirmation
-        root = tk.Tk()
-        root.withdraw()
-        messagebox.showinfo(
-            "Log Files Cleaned",
-            f"Successfully cleaned {cleaned_count} log files."
-        )
-        root.destroy()
+        if config_manager.config_exists():
+            return True
+        
+        print("\n" + "="*60)
+        print("Configuration Required")
+        print("="*60)
+        print("\nconfig.json not found.")
+        
+        if mode == "gui":
+            print("Opening configuration window...")
+            
+            # Create a simple window first to ensure user sees it
+            import tkinter as tk
+            from tkinter import messagebox
+            
+            # Create a minimal window to get attention
+            attention_window = tk.Tk()
+            attention_window.title("Configuration Setup")
+            attention_window.geometry("500x200")
+            
+            # Center window
+            attention_window.update_idletasks()
+            x = (attention_window.winfo_screenwidth() - attention_window.winfo_width()) // 2
+            y = (attention_window.winfo_screenheight() - attention_window.winfo_height()) // 2
+            attention_window.geometry(f"+{x}+{y}")
+            
+            # Add content
+            tk.Label(attention_window, text="Configuration Required", 
+                    font=("Arial", 14, "bold")).pack(pady=20)
+            
+            tk.Label(attention_window, text="Click 'Configure' to create config.json file.",
+                    font=("Arial", 11)).pack(pady=10)
+            
+            result = {"confirmed": False}
+            
+            def on_configure():
+                result["confirmed"] = True
+                attention_window.destroy()
+            
+            def on_exit():
+                attention_window.destroy()
+            
+            # White buttons with black text
+            tk.Button(attention_window, text="Configure", command=on_configure,
+                     bg="white", fg="black", font=("Arial", 10, "bold"),
+                     width=15, height=2).pack(side=tk.LEFT, padx=20, pady=20)
+            
+            tk.Button(attention_window, text="Exit", command=on_exit,
+                     bg="white", fg="black", font=("Arial", 10),
+                     width=15, height=2).pack(side=tk.RIGHT, padx=20, pady=20)
+            
+            # Bring to front
+            attention_window.lift()
+            attention_window.attributes('-topmost', True)
+            attention_window.after_idle(attention_window.attributes, '-topmost', False)
+            
+            attention_window.mainloop()
+            
+            if not result["confirmed"]:
+                print("Configuration cancelled.")
+                return False
+            
+            # Now create the actual configuration
+            return config_manager.create_config_gui()
+        else:
+            # CLI mode
+            return config_manager.create_config_cli()
+            
+    except Exception as e:
+        print(f"❌ Configuration setup failed: {e}")
+        return False
+
+
+def setup_environment(args) -> bool:
+    """Set up environment."""
+    print("\n" + "="*60)
+    print("Environment Setup")
+    print("="*60)
     
+    # 1. Ensure config exists FIRST
+    if not ensure_config_exists(args.mode):
+        return False
+    
+    print("✅ Configuration check passed")
+    
+    # 2. Create base query file
+    try:
+        from atscalewrapper.query_manager import QueryManager
+        query_manager = QueryManager()
+        query_manager.create_base_query_file()
+        print("✅ Base query file created")
+    except Exception:
+        print("⚠ Could not create base query file")
+    
+    # 3. Clean logs
+    try:
+        from atscalewrapper.log_manager import LogManager
+        log_manager = LogManager()
+        if args.mode == "gui":
+            log_manager.check_and_clean_gui()
+        else:
+            log_manager.check_and_clean_cli()
+        print("✅ Logs cleaned")
+    except Exception:
+        print("⚠ Could not clean log files")
+    
+    # 4. Check certificates (just inform user)
+    try:
+        from atscalewrapper.config_manager import ConfigManager
+        config_manager = ConfigManager()
+        
+        root_crt = os.path.join(config_manager.home_dir, 'root.crt')
+        cacerts = os.path.join(config_manager.home_dir, 'cacerts')
+        
+        if os.path.exists(root_crt) and os.path.exists(cacerts):
+            print("✅ Certificates found")
+        else:
+            print("⚠ Some certificates missing")
+            print("   Will be prompted if needed during operation")
+                
+    except Exception:
+        print("⚠ Certificate check failed")
+    
+    print("\n" + "="*60)
+    print("Setup Complete")
+    print("="*60)
     return True
 
 
-def check_and_clean_logs_cli():
-    """Check for existing log files and ask user if they want to clean them up (CLI mode)."""
-    logs_dir = "working_dir/run_logs"
-    
-    # Create directory if it doesn't exist
-    os.makedirs(logs_dir, exist_ok=True)
-    
-    # Check for .log files
-    log_files = glob.glob(os.path.join(logs_dir, "*.log"))
-    
-    if not log_files:
-        return True  # No logs to clean
-    
-    print(f"⚠ Found {len(log_files)} existing log files in {logs_dir}/")
-    
-    response = input("Do you want to clean them up before starting? (yes/no): ").strip().lower()
-    
-    if response in ['yes', 'y']:
-        cleaned_count = 0
-        for log_file in log_files:
-            try:
-                os.remove(log_file)
-                cleaned_count += 1
-            except Exception as e:
-                print(f"❌ Failed to delete {log_file}: {e}")
-        
-        print(f"✅ Successfully cleaned {cleaned_count} log files.")
-    
-    return True
-
-
-def run_gui_mode():
+def run_gui_mode() -> int:
     """Start Tkinter GUI if display is available."""
-    # Basic display check for Linux/X11 environments
     if sys.platform not in ("darwin", "win32") and not os.getenv("DISPLAY"):
         print("❌ No GUI display detected. Run with: --mode cli")
         return 1
@@ -181,10 +172,8 @@ def run_gui_mode():
         print(f"❌ Failed to load GUI modules: {e}")
         print("Try running CLI mode instead: --mode cli")
         return 1
-    
-    # Check and clean logs before starting GUI
-    check_and_clean_logs_gui()
 
+    # Create and run main GUI
     root = tk.Tk()
     app = AtScaleGatlingGUI(root)
     root.protocol("WM_DELETE_WINDOW", app.on_closing)
@@ -192,13 +181,15 @@ def run_gui_mode():
     return 0
 
 
-def main():
+def main() -> int:
     """Application entry point."""
+    print("🚀 AtScale Gatling Controller")
+    
+    # Check dependencies
     if not check_dependencies():
         return 1
-
-    create_base_query_file()
-
+    
+    # Parse arguments
     parser = argparse.ArgumentParser(description="AtScale Gatling Controller")
     parser.add_argument(
         "--mode",
@@ -206,13 +197,16 @@ def main():
         default="gui",
         help="Run in GUI or CLI mode (default: GUI)",
     )
-
+    
     args, remaining = parser.parse_known_args()
-
+    
+    # Setup environment (config MUST be created first)
+    if not setup_environment(args):
+        print("\n❌ Environment setup failed. Exiting.")
+        return 1
+    
+    # Run the appropriate mode
     if args.mode == "cli":
-        # Check and clean logs for CLI mode
-        check_and_clean_logs_cli()
-        
         cli_parser = create_cli_parser()
         cli_args = cli_parser.parse_args(remaining)
         return run_cli_mode(cli_args)

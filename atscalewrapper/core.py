@@ -285,6 +285,7 @@ class AtScaleGatlingCore:
             "docker", "run", "--rm", "--platform", "linux/amd64",
             "-v", f"{os.getcwd()}/working_dir:/app/working_dir",
             "-v", f"{os.getcwd()}/config.json:/app/config.json",
+            "-v", f"{os.getcwd()}/root.crt:/root/.postgres/root.crt",
         ]
                 
         # Add cacerts if available

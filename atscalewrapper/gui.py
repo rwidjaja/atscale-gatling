@@ -9,6 +9,7 @@ import queue
 from datetime import datetime
 from .core import AtScaleGatlingCore
 from .csv_handler import CSVConfigWindow
+from .config_manager import ConfigManager
 
 class AtScaleGatlingGUI:
     def __init__(self, root):
@@ -17,6 +18,7 @@ class AtScaleGatlingGUI:
         self.root.geometry("1200x800")
         
         self.core = AtScaleGatlingCore()
+        self.config_manager = ConfigManager()  # Add this line
         self.log_queue = queue.Queue()
         self.tail_process = None
         self.current_executor = None
@@ -59,7 +61,7 @@ class AtScaleGatlingGUI:
     def setup_model_selection_frame(self, parent):
         """Left panel: Catalog/Cube pair selection"""
         frame = tk.LabelFrame(parent, text="Model Selection (Catalog/Cube Pairs)", 
-                             font=('Arial', 12, 'bold'), padx=10, pady=10)
+                            font=('Arial', 12, 'bold'), padx=10, pady=10)
         frame.pack(fill=tk.BOTH, expand=True)
         
         # Instructions
@@ -71,7 +73,7 @@ class AtScaleGatlingGUI:
         list_frame.pack(fill=tk.BOTH, expand=True, pady=5)
         
         self.model_listbox = tk.Listbox(list_frame, selectmode=tk.MULTIPLE, 
-                                       font=('Arial', 10), exportselection=False)
+                                    font=('Arial', 10), exportselection=False)
         self.model_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Bind selection events
@@ -87,28 +89,92 @@ class AtScaleGatlingGUI:
         control_frame.pack(fill=tk.X, pady=5)
         
         tk.Button(control_frame, text="Select All", command=self.select_all_models,
-                 bg='#E3F2FD', fg='black', font=('Arial', 9)).pack(side=tk.LEFT, padx=5)
+                bg='#E3F2FD', fg='black', font=('Arial', 9)).pack(side=tk.LEFT, padx=5)
         
         tk.Button(control_frame, text="Clear Selection", command=self.clear_model_selection,
-                 bg='#FFEBEE', fg='black', font=('Arial', 9)).pack(side=tk.LEFT, padx=5)
+                bg='#FFEBEE', fg='black', font=('Arial', 9)).pack(side=tk.LEFT, padx=5)
         
         # NEW: Load From CSV button (white with black text)
         self.csv_button = tk.Button(control_frame, text="Load From CSV", 
-                                   command=self.load_from_csv,
-                                   bg='white', fg='black', font=('Arial', 9))
+                                command=self.load_from_csv,
+                                bg='white', fg='black', font=('Arial', 9))
         self.csv_button.pack(side=tk.LEFT, padx=5)
         self.csv_button.config(state=tk.DISABLED)  # Initially disabled
         
+        # NEW: Edit Config button (white with black text)
+        self.edit_config_button = tk.Button(control_frame, text="Edit Config", 
+                                        command=self.edit_config,
+                                        bg='white', fg='black', font=('Arial', 9))
+        self.edit_config_button.pack(side=tk.LEFT, padx=5)
+        
         # Selection info
         self.selection_info = tk.Label(frame, text="No models selected", 
-                                      font=('Arial', 9), fg='blue')
+                                    font=('Arial', 9), fg='blue')
         self.selection_info.pack(anchor=tk.W, pady=5)
         
         # Mode indicator
         self.mode_label = tk.Label(frame, text="Mode: Live (will make JDBC/XMLA calls)", 
-                                  font=('Arial', 9), fg='blue')
+                                font=('Arial', 9), fg='blue')
         self.mode_label.pack(anchor=tk.W, pady=5)
 
+    def edit_config(self):
+        """Open configuration editor"""
+        try:
+            if not self.config_manager.config_exists():
+                response = messagebox.askyesno(
+                    "Configuration Not Found",
+                    "Configuration file not found. Would you like to create a new one?"
+                )
+                if response:
+                    # Create new configuration
+                    if self.config_manager.create_config_gui(parent_window=self.root):
+                        self.log_activity("✅ Configuration created successfully")
+                        # Optionally, check and create certificates
+                        self.check_and_create_certificates()
+                    else:
+                        self.log_activity("⚠️ Configuration creation cancelled")
+                return
+            
+            # Edit existing configuration
+            if self.config_manager.edit_config_gui(parent_window=self.root):
+                self.log_activity("✅ Configuration updated successfully")
+                # Optionally, check and create certificates after config update
+                self.check_and_create_certificates()
+            else:
+                self.log_activity("⚠️ Configuration editing cancelled")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to edit configuration: {e}")
+            self.log_activity(f"❌ Error editing configuration: {e}")
+
+    def check_and_create_certificates(self):
+        """Check and prompt for certificate creation if needed"""
+        try:
+            # Check if certificates exist
+            root_crt = os.path.join(str(Path.home()), 'root.crt')
+            cacerts = os.path.join(str(Path.home()), 'cacerts')
+            
+            if not os.path.exists(root_crt) or not os.path.exists(cacerts):
+                response = messagebox.askyesno(
+                    "Missing Certificates",
+                    "Certificate files (root.crt and/or cacerts) are missing. "
+                    "These are required for secure connections.\n\n"
+                    "Would you like to create them now?"
+                )
+                if response:
+                    # Use the ConfigManager to create certificates
+                    success = self.config_manager.check_and_create_certificates(auto_create=True)
+                    if success:
+                        self.log_activity("✅ Certificates created successfully")
+                        messagebox.showinfo("Success", "Certificates created successfully!")
+                    else:
+                        self.log_activity("❌ Failed to create certificates")
+                        messagebox.showerror("Error", 
+                            "Failed to create certificates. "
+                            "Please check your configuration and network connectivity.")
+        except Exception as e:
+            self.log_activity(f"⚠️ Certificate check error: {e}")
+            
     def setup_executor_selection_frame(self, parent):
         """Right panel: Executor selection and controls"""
         frame = tk.LabelFrame(parent, text="Simulation Executors", 
