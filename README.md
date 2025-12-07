@@ -274,10 +274,16 @@ This verifies:
 chmod +x build-docker.sh run-executor.sh run-interactive.sh
 ```
 
+
 If you want, I can also:
 
 - Run `python3 check-dependencies.py` locally and report findings
 - Create a short CONTRIBUTING or QUICKSTART section for your CI/docker usage
+
+**Credits**
+
+- Original Gatling app authored by Steve.
+- This repository adds a user-friendly wrapper (`atscalewrapper/`) built by the Rudy  to simplify configuration, provide a GUI, and add Docker helpers.
 
 ---
 
