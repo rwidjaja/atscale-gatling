@@ -1,7 +1,12 @@
 package com.atscale.java.xmla.cases;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,6 +17,8 @@ import com.atscale.java.dao.QueryHistoryDto;
 import com.atscale.java.utils.CsvLoaderUtil;
 import com.atscale.java.utils.PropertiesManager;
 import com.atscale.java.utils.QueryHistoryFileUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static io.gatling.javaapi.core.CoreDsl.StringBody;
 import static io.gatling.javaapi.core.CoreDsl.bodyString;
@@ -22,9 +29,73 @@ import io.gatling.javaapi.http.HttpRequestActionBuilder;
 @SuppressWarnings("unused")
 public class AtScaleDynamicXmlaActions {
     private static final Logger LOGGER = LoggerFactory.getLogger(AtScaleDynamicXmlaActions.class);
+    private static final String WORKING_DIR = "working_dir";
+    private static final String CONFIG_DIR = "config";
+    private static final String RUNTIME_FILE = "runtime.json";
+    private static final int DEFAULT_TIMEOUT_SECONDS = 120;
+    
+    // Cache for timeout configuration
+    private static Integer cachedXmlaRequestTimeoutSeconds = null;
+    private static long lastConfigModified = 0;
 
     public AtScaleDynamicXmlaActions() {
         super();
+    }
+
+    /**
+     * Get XMLA request timeout from runtime.json configuration
+     * Follows the same pattern as ClosedStepConcurrentSimulationExecutor
+     */
+    public static int getXmlaRequestTimeoutSeconds() {
+        File runtimeFile = new File(WORKING_DIR, CONFIG_DIR + File.separator + RUNTIME_FILE);
+        
+        // Check if we need to reload (file changed or not cached)
+        if (cachedXmlaRequestTimeoutSeconds != null && runtimeFile.exists() && 
+            runtimeFile.lastModified() <= lastConfigModified) {
+            return cachedXmlaRequestTimeoutSeconds;
+        }
+        
+        // Load configuration
+        cachedXmlaRequestTimeoutSeconds = loadXmlaRequestTimeoutFromConfig();
+        if (runtimeFile.exists()) {
+            lastConfigModified = runtimeFile.lastModified();
+        }
+        
+        return cachedXmlaRequestTimeoutSeconds;
+    }
+
+    private static int loadXmlaRequestTimeoutFromConfig() {
+        File runtimeFile = new File(WORKING_DIR, CONFIG_DIR + File.separator + RUNTIME_FILE);
+        
+        // Check if runtime.json exists
+        if (!runtimeFile.exists()) {
+            LOGGER.warn("runtime.json not found at {} using default XMLA request timeout: {} seconds", 
+                       runtimeFile.getAbsolutePath(), DEFAULT_TIMEOUT_SECONDS);
+            return DEFAULT_TIMEOUT_SECONDS;
+        }
+        
+        try (FileInputStream fis = new FileInputStream(runtimeFile);
+             InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8)) {
+            
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(isr);
+            
+            // Get the xmlaRequestTimeoutSeconds from the root of the JSON
+            if (rootNode.has("xmlaRequestTimeoutSeconds")) {
+                int timeout = rootNode.get("xmlaRequestTimeoutSeconds").asInt(DEFAULT_TIMEOUT_SECONDS);
+                LOGGER.info("Loaded XMLA request timeout from runtime.json: {} seconds", timeout);
+                return timeout;
+            } else {
+                LOGGER.warn("xmlaRequestTimeoutSeconds not found in runtime.json, using default: {} seconds", 
+                           DEFAULT_TIMEOUT_SECONDS);
+                return DEFAULT_TIMEOUT_SECONDS;
+            }
+            
+        } catch (Exception e) {
+            LOGGER.error("Error reading timeout from runtime.json, using default: {} seconds", 
+                        DEFAULT_TIMEOUT_SECONDS, e);
+            return DEFAULT_TIMEOUT_SECONDS;
+        }
     }
 
     private List<NamedHttpRequestActionBuilder> createXmlaPayloads(List<QueryHistoryDto> history, String cubeName, String catalog) {
@@ -69,10 +140,14 @@ public class AtScaleDynamicXmlaActions {
     }
 
     private HttpRequestActionBuilder httpRequest(String queryName, String body) {
+        int timeoutSeconds = getXmlaRequestTimeoutSeconds();
+        
+        LOGGER.debug("Setting request timeout for query '{}' to {} seconds", queryName, timeoutSeconds);
+        
         return http(queryName)
                 .post("")
                 .body(StringBody(body)).asXml()
-                .requestTimeout(java.time.Duration.ofSeconds(120))
+                .requestTimeout(Duration.ofSeconds(timeoutSeconds))
                 .check(
                         status().saveAs("responseStatus"),
                         status().is(200),

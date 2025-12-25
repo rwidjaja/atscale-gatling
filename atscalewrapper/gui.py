@@ -185,7 +185,7 @@ class AtScaleGatlingGUI:
             self.core = core
             self.window = tk.Toplevel(parent)
             self.window.title("Runtime Configuration")
-            self.window.geometry("800x600")
+            self.window.geometry("900x700")
             
             # Make window modal
             self.window.transient(parent)
@@ -213,6 +213,24 @@ class AtScaleGatlingGUI:
             tk.Label(main_frame, text="Configure injection steps for each simulation executor:", 
                     font=("Arial", 10)).pack(anchor=tk.W, pady=(0, 20))
             
+            # ========== XMLA Timeout Configuration ==========
+            timeout_frame = tk.LabelFrame(main_frame, text="XMLA Request Timeout", 
+                                        font=("Arial", 10, "bold"), padx=10, pady=10)
+            timeout_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            tk.Label(timeout_frame, 
+                    text="XMLA Request Timeout (seconds):",
+                    font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 10))
+            
+            self.xmla_timeout_var = tk.StringVar(value="120")
+            timeout_entry = tk.Entry(timeout_frame, textvariable=self.xmla_timeout_var, 
+                                width=10, font=("Arial", 10))
+            timeout_entry.pack(side=tk.LEFT, padx=(0, 20))
+            
+            tk.Label(timeout_frame, 
+                    text="Maximum time to wait for XMLA queries before timeout",
+                    font=("Arial", 9), fg="gray").pack(side=tk.LEFT)
+            
             # Create notebook for tabs
             notebook = ttk.Notebook(main_frame)
             notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
@@ -227,30 +245,30 @@ class AtScaleGatlingGUI:
                     "title": "Closed Step - Sequential",
                     "step_type": "ConstantConcurrentUsersClosedInjectionStep",
                     "fields": [
-                        {"name": "users", "label": "Number of Users", "type": "int", "default": 10},
-                        {"name": "durationMinutes", "label": "Duration (Minutes)", "type": "int", "default": 60}
+                        {"name": "users", "label": "Number of Users", "type": "int", "default": 1},
+                        {"name": "durationMinutes", "label": "Duration (Minutes)", "type": "int", "default": 6}
                     ]
                 },
                 "OpenStepSequentialSimulationExecutor": {
                     "title": "Open Step - Sequential",
                     "step_type": "AtOnceUsersOpenInjectionStep",
                     "fields": [
-                        {"name": "users", "label": "Number of Users", "type": "int", "default": 20}
+                        {"name": "users", "label": "Number of Users", "type": "int", "default": 2}
                     ]
                 },
                 "ClosedStepConcurrentSimulationExecutor": {
                     "title": "Closed Step - Concurrent",
                     "step_type": "ConstantConcurrentUsersClosedInjectionStep",
                     "fields": [
-                        {"name": "users", "label": "Number of Users", "type": "int", "default": 15},
-                        {"name": "durationMinutes", "label": "Duration (Minutes)", "type": "int", "default": 45}
+                        {"name": "users", "label": "Number of Users", "type": "int", "default": 1},
+                        {"name": "durationMinutes", "label": "Duration (Minutes)", "type": "int", "default": 1}
                     ]
                 },
                 "OpenStepConcurrentSimulationExecutor": {
                     "title": "Open Step - Concurrent",
                     "step_type": "AtOnceUsersOpenInjectionStep",
                     "fields": [
-                        {"name": "users", "label": "Number of Users", "type": "int", "default": 25}
+                        {"name": "users", "label": "Number of Users", "type": "int", "default": 2}
                     ]
                 }
             }
@@ -331,7 +349,11 @@ class AtScaleGatlingGUI:
                 with open(runtime_file, 'r') as f:
                     config_data = json.load(f)
                 
-                # Update UI with loaded values
+                # Load XMLA timeout if present
+                if "xmlaRequestTimeoutSeconds" in config_data:
+                    self.xmla_timeout_var.set(str(config_data["xmlaRequestTimeoutSeconds"]))
+                
+                # Update UI with loaded values for executors
                 loaded_entries = 0
                 for executor, settings in config_data.items():
                     if executor in self.entries:
@@ -343,7 +365,9 @@ class AtScaleGatlingGUI:
                                     var.set(str(step[key]))
                                     loaded_entries += 1
                 
-                if loaded_entries > 0:
+                total_loaded = loaded_entries + (1 if "xmlaRequestTimeoutSeconds" in config_data else 0)
+                
+                if total_loaded > 0:
                     self.info_label.config(
                         text=f"✅ Loaded existing configuration from {runtime_file}", 
                         fg='green'
@@ -370,10 +394,30 @@ class AtScaleGatlingGUI:
             import json
             import os
             
-            # Build configuration structure
-            config_data = {}
+            # Validate XMLA timeout input
+            try:
+                xmla_timeout_str = self.xmla_timeout_var.get().strip()
+                if not xmla_timeout_str:
+                    self.info_label.config(
+                        text="❌ Error: XMLA Request Timeout cannot be empty", 
+                        fg='red'
+                    )
+                    return
+                
+                xmla_timeout = int(xmla_timeout_str)
+                if xmla_timeout <= 0:
+                    raise ValueError("must be positive")
+            except ValueError as e:
+                self.info_label.config(
+                    text="❌ Error: XMLA Request Timeout must be a positive integer", 
+                    fg='red'
+                )
+                return
             
-            # Validate all inputs before saving
+            # Build configuration structure starting with XMLA timeout
+            config_data = {"xmlaRequestTimeoutSeconds": xmla_timeout}
+            
+            # Validate and add executor configurations
             for executor, entries in self.entries.items():
                 # Create injection step based on type
                 step = {"type": entries["type"]}
@@ -448,6 +492,10 @@ class AtScaleGatlingGUI:
         
         def reset_to_defaults(self):
             """Reset all fields to default values"""
+            # Reset XMLA timeout to default
+            self.xmla_timeout_var.set("120")
+            
+            # Reset executor fields to defaults
             for executor, config in self.default_configs.items():
                 for field in config["fields"]:
                     field_name = field["name"]
